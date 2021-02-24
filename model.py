@@ -3,9 +3,102 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 
-from layers import SpatialGCN, EncoderUnit, DecoderUnit, GenerateNodes, clones, subsequent_mask
-from skeleton_models import ntu_rgbd, get_kernel_by_group, ntu_ss_1, ntu_ss_2, ntu_ss_3, partial
+# from layers import SpatialGCN, EncoderUnit, DecoderUnit, GenerateNodes, clones, subsequent_mask
 
+from zoo_pose_encoders import TwoLayersGCNPoseEncoder
+from zoo_action_encoder_units import EncoderUnit
+from zoo_action_decoder_units import DecoderUnit
+from zoo_upsampling import StepByStepUpsampling
+
+
+conf_kernel_size = 5
+conf_num_nodes = 25
+conf_heads = 5
+conf_encoding_per_node = 20
+conf_internal_per_node = int(conf_encoding_per_node/conf_heads)
+
+class ActionEmbeddingTransformer(nn.Module):
+    def __init__(self, pose_embedding, action_encoder, action_decoder, upsampling):
+        super().__init__()
+
+        self.pose_embedding = pose_embedding
+        self.action_encoder = action_encoder
+        self.action_decoder = action_decoder
+        self.upsampling = upsampling
+
+    def forward(self, x_in, x_out, A, mask):
+
+        pe_in = self.pose_embedding(x_in, A)
+
+        pe_out = self.pose_embedding(x_out, A)
+
+        encoded = self.action_encoder(pe_in, A)
+
+        decoded = self.action_decoder(encoded, pe_out, A, mask)
+
+        output = self.upsampling(decoded)
+
+        return output
+
+
+
+class EncoderStack(nn.Module):
+    def __init__(self, encoder_unit, qty):
+        super().__init__()
+        self.encoder_units = clones(encoder_unit, qty)
+
+    def forward(self, x, A):
+        for unit in self.encoder_units:
+            x = unit(x, A)
+        return x
+
+class DecoderStack(nn.Module):
+    def __init__(self, decoder_unit, qty):
+        super().__init__()
+        self.decoder_units = clones(decoder_unit, qty)
+
+    def forward(self, x, memory, A, mask):
+        for unit in self.decoder_units:
+            x = unit(x, memory, A, mask)
+        return x
+
+
+
+class BetterThatBestModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.model = ActionEmbeddingTransformer(
+            TwoLayersGCNPoseEncoder(
+                3,
+                conf_encoding_per_node,
+                conf_kernel_size
+            ),
+            EncoderUnit(
+                heads=conf_heads,
+                node_channel_in=conf_encoding_per_node,
+                node_channel_mid=conf_internal_per_node,
+                node_channel_out=conf_encoding_per_node,
+                num_nodes=conf_num_nodes,
+                kernel_size=conf_kernel_size
+            ),
+            DecoderUnit(
+                heads=3,
+                node_channel_in=conf_encoding_per_node,
+                memory_channel_in=conf_encoding_per_node,
+                node_channel_mid=(conf_internal_per_node,conf_internal_per_node),
+                node_channel_out=conf_encoding_per_node,
+                num_nodes=conf_num_nodes,
+                kernel_size=conf_kernel_size
+            ),
+
+            StepByStepUpsampling(
+               conf_num_nodes,
+               conf_encoding_per_node
+            )
+        )
+
+    def forward(self, x_in, x_out, A, mask):
+        return self.model(x_in, x_out, A, mask)
 
 
 class BestModelEver(nn.Module):
