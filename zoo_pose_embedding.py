@@ -6,7 +6,7 @@ import numpy as np
 
 from layers import SpatialGCN, to_embedding_form, to_gcn_layer, from_gcn_layer
 
-class TwoLayersGCNPoseEncoder(nn.Module):
+class TwoLayersGCNPoseEmbedding(nn.Module):
     def __init__(self, input_channel, output_channel, kernel_size):
         super().__init__()
         self.spatial_gcn_1 = SpatialGCN(input_channel, 12, kernel_size)

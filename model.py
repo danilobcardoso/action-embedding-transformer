@@ -5,9 +5,9 @@ from torch.utils.data import Dataset, DataLoader
 
 from layers import clones, subsequent_mask
 
-from zoo_pose_encoders import TwoLayersGCNPoseEncoder
-from zoo_action_encoder_units import EncoderUnit
-from zoo_action_decoder_units import DecoderUnit
+from zoo_pose_embedding import TwoLayersGCNPoseEmbedding
+from zoo_action_encoder_units import AttentionWithGCNEncoder
+from zoo_action_decoder_units import AttentionWithGCNDecoder
 from zoo_upsampling import StepByStepUpsampling
 
 
@@ -71,12 +71,12 @@ class BetterThatBestModel(nn.Module):
     def __init__(self):
         super().__init__()
         self.model = ActionEmbeddingTransformer(
-            TwoLayersGCNPoseEncoder(
+            TwoLayersGCNPoseEmbedding (
                 3,
                 conf_encoding_per_node,
                 conf_kernel_size
             ),
-            EncoderUnit(
+            AttentionWithGCNEncoder(
                 heads=conf_heads,
                 node_channel_in=conf_encoding_per_node,
                 node_channel_mid=conf_internal_per_node,
@@ -84,7 +84,7 @@ class BetterThatBestModel(nn.Module):
                 num_nodes=conf_num_nodes,
                 kernel_size=conf_kernel_size
             ),
-            DecoderUnit(
+            AttentionWithGCNDecoder(
                 heads=3,
                 node_channel_in=conf_encoding_per_node,
                 memory_channel_in=conf_encoding_per_node,
@@ -111,7 +111,7 @@ class BestModelEver(nn.Module):
         self.spatial_gcn_1 = SpatialGCN(3, 12, conf_kernel_size)
         self.spatial_gcn_2 = SpatialGCN(12, conf_encoding_per_node, conf_kernel_size)
 
-        self.encoder_1, self.encoder_2, self.encoder_3 = clones(EncoderUnit(
+        self.encoder_1, self.encoder_2, self.encoder_3 = clones(AttentionWithGCNEncoder(
             heads=conf_heads,
             node_channel_in=conf_encoding_per_node,
             node_channel_mid=conf_internal_per_node,
@@ -120,7 +120,7 @@ class BestModelEver(nn.Module):
             kernel_size=conf_kernel_size
         ), 3)
 
-        self.decoder_1, self.decoder_2, self.decoder_3 = clones(DecoderUnit(
+        self.decoder_1, self.decoder_2, self.decoder_3 = clones(AttentionWithGCNDecoder(
             heads=3,
             node_channel_in=conf_encoding_per_node,
             memory_channel_in=conf_encoding_per_node,

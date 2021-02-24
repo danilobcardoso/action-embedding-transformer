@@ -6,7 +6,7 @@ import numpy as np
 
 from layers import SpatialGCN, TemporalSelfAttention, TemporalInputAttention, LayerNorm, to_gcn_layer, from_gcn_layer, to_graph_form, to_embedding_form
 
-class DecoderUnit(nn.Module):
+class AttentionWithGCNDecoder(nn.Module):
     def __init__(self, heads, node_channel_in, memory_channel_in, node_channel_mid, node_channel_out, num_nodes=25, kernel_size=5):
         super().__init__()
 
