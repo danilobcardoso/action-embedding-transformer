@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-from layers import SpatialGCN, TemporalSelfAttention, LayerNorm, to_gcn_layer, from_gcn_layer, to_graph_form, to_embedding_form
+from layers import SpatialGCN, TemporalSelfAttention, LayerNorm, to_gcn_layer, from_gcn_layer, to_graph_form, to_embedding_form, TransformerSublayerConnection, PositionwiseFeedForward
 
 class AttentionWithGCNEncoder(nn.Module):
     def __init__(self, heads, node_channel_in, node_channel_mid, node_channel_out, num_nodes=25, kernel_size=5):
@@ -39,3 +39,23 @@ class AttentionWithGCNEncoder(nn.Module):
 
         x = self.norm_2(x)
         return x
+
+class TransformerEncoderUnit(nn.Module):
+    def __init__(self, heads, node_channel_in, node_channel_mid, node_channel_out, num_nodes=25, kernel_size=5, dropout=0.5):
+        super().__init__()
+        self.self_attn = TemporalSelfAttention(
+            heads=heads,
+            num_nodes=num_nodes,
+            node_channel_in=node_channel_in,
+            node_channel_out=node_channel_out)
+
+        self.feed_forward = PositionwiseFeedForward(node_channel_out*heads*num_nodes, node_channel_out*heads*num_nodes*2)
+
+        self.sublayer1 = TransformerSublayerConnection(node_channel_out*heads*num_nodes, dropout)
+        self.sublayer2 = TransformerSublayerConnection(node_channel_out*heads*num_nodes, dropout)
+
+    def forward(self, x, A):
+        x = self.sublayer1(x, self.self_attn)
+        x = self.sublayer2(x, self.feed_forward)
+        return x
+
