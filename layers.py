@@ -13,6 +13,32 @@ def subsequent_mask(size):
     subsequent_mask = np.triu(np.ones(attn_shape), k=1).astype('uint8')
     return torch.from_numpy(subsequent_mask) == 0
 
+def to_graph_form(x, num_nodes=25):
+    "[ N, T, V * C] -> [ N, T, V, C]"
+    n, t, vc = x.size()
+    v = num_nodes
+    c = int(vc/v)
+    x = x.view(n, t, v, c)
+    return x
+
+def to_embedding_form(x):
+    "[ N, T, V, C] -> [ N, T, V*C]"
+    n, t, v, c = x.size()
+    x = x.view(n, t, v*c)   # [N, T, V*Cout]
+    return x
+
+def to_gcn_layer(x, num_nodes=25):
+    "[N, T, V, Ci] -> [N, Ci, T, V]"
+    x = x.permute(0, 3, 1, 2).contiguous() # [N, T, V, Ci] -> [N, Ci, T, V]
+    assert x.size()[-1] == num_nodes
+    return x
+
+def from_gcn_layer(x, num_nodes=25):
+    "[ N, C, T, V] -> [ N, T, V, C]"
+    x = x.permute(0, 2, 3, 1).contiguous() # [ N, Cout, T, V] -> [ N, T, V, Cout]
+    assert x.size()[-2] == num_nodes
+    return x
+
 
 class LayerNorm(nn.Module):
     def __init__(self, features, eps=1e-6):
@@ -22,11 +48,10 @@ class LayerNorm(nn.Module):
         self.eps = eps
 
     def forward(self, x):
-        x = x.permute(0, 2, 3, 1).contiguous() # [N, C, T, V] -> [N, T, V, C] ;
+        "Expected shape [ N, T, VC] "
         mean = x.mean(-1, keepdim=True)
         std = x.std(-1, keepdim=True)
         x = self.a_2 * (x - mean) / (std + self.eps) + self.b_2
-        x = x.permute(0, 3, 1, 2).contiguous() # [N, T, V, C] -> [N, C, T, V]
         return x
 
 
@@ -65,9 +90,7 @@ class TemporalSelfAttention(nn.Module):
         self.w_values = clones(nn.Linear(num_nodes*node_channel_in, num_nodes*node_channel_out), heads)
 
     def forward(self, x, mask=None):
-        n, c, t, v = x.size() # [N, Cin, T, V]
-        x = x.permute(0, 2, 1, 3).contiguous() # [N, Cin, T, V] -> [N, T, Cin, V]
-        x = x.view(n, t, c*v)                  # [N, Cin, T, V] -> [N, T, Cin*V]
+        n, t, vc = x.size() # [N, T, V*C]
 
         keys = torch.stack([ l(x) for l in self.w_keys], dim=1)
         queries = torch.stack([ l(x) for l in self.w_queries], dim=1)
@@ -78,10 +101,9 @@ class TemporalSelfAttention(nn.Module):
             att = att.masked_fill(mask == 0, -1e9)
         att = torch.softmax(att, dim=-1)
 
-        x = torch.matmul(att, values) #  -> [N, H, T, Cout*V]
-        x = x.permute(0, 2, 3, 1).contiguous() # [N, H, T, Cout*V] -> [N, T, Cout*V, H]
-        x = x.view(n, t, v, self.node_out *  self.h) # [N, T, V * Cout, H] -> [N, T, V, Cout * H]
-        x = x.permute(0, 3, 1, 2).contiguous() # [N, T, V, Cout * H] -> [N, Cout * H, T, V]
+        x = torch.matmul(att, values) #  -> [N, H, T, V*Cout]
+        x = x.permute(0, 2, 3, 1).contiguous() # [N, H, T, V*Cout] -> [N, T, V*Cout, H]
+        x = x.view(n, t, -1) # [N, T, V*Cout, H] -> [N, T, V*Cout*H]
         return x
 
 class TemporalInputAttention(nn.Module):
@@ -97,13 +119,9 @@ class TemporalInputAttention(nn.Module):
         self.w_values = clones(nn.Linear(num_nodes*node_memory_in, num_nodes*node_channel_out), heads)
 
     def forward(self, x, m):
-        n, c, t, v = x.size() # [N, Cin, T, V]
-        x = x.permute(0, 2, 1, 3).contiguous() # [N, Cin, T, V] -> [N, T, Cin, V]
-        x = x.view(n, t, c*v)                  # [N, Cin, T, V] -> [N, T, Cin*V]
 
-        mn, mc, mt, mv = m.size() # [N, Cin, T, V]
-        m = m.permute(0, 2, 1, 3).contiguous() # [N, Cin, T, V] -> [N, T, Cin, V]
-        m = m.view(mn, mt, mc*mv)                  # [N, Cin, T, V] -> [N, T, Cin*V]
+        n, t, vc = x.size() # [N, T, V*C]s
+        mn, mt, mvc, = m.size() # [N, T, VC]
 
         keys = torch.stack([ l(x) for l in self.w_keys], dim=1)
         queries = torch.stack([ l(m) for l in self.w_queries], dim=1)
@@ -113,13 +131,7 @@ class TemporalInputAttention(nn.Module):
         att = torch.softmax(att, dim=1)
 
         x = torch.matmul(att, values) #  -> [N, H, T, Cout*V]
-        x = x.permute(0, 2, 3, 1).contiguous() # [N, H, T, Cout*V] -> [N, T, Cout*V, H]
-        x = x.view(n, t, v, self.node_out *  self.h) # [N, T, V * Cout, H] -> [N, T, V, Cout * H]
-        x = x.permute(0, 3, 1, 2).contiguous() # [N, T, V, Cout * H] -> [N, Cout * H, T, V]
+
+        x = x.permute(0, 2, 3, 1).contiguous() # [N, H, T, V*Cout] -> [N, T, V*Cout, H]
+        x = x.view(n, t, -1) # [N, T, V*Cout, H] -> [N, T, V*Cout*H]
         return x
-
-
-
-
-
-
