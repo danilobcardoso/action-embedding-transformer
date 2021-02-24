@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 
-# from layers import SpatialGCN, EncoderUnit, DecoderUnit, GenerateNodes, clones, subsequent_mask
+from layers import clones, subsequent_mask
 
 from zoo_pose_encoders import TwoLayersGCNPoseEncoder
 from zoo_action_encoder_units import EncoderUnit
@@ -17,30 +17,6 @@ conf_heads = 5
 conf_encoding_per_node = 20
 conf_internal_per_node = int(conf_encoding_per_node/conf_heads)
 
-class ActionEmbeddingTransformer(nn.Module):
-    def __init__(self, pose_embedding, action_encoder, action_decoder, upsampling):
-        super().__init__()
-
-        self.pose_embedding = pose_embedding
-        self.action_encoder = action_encoder
-        self.action_decoder = action_decoder
-        self.upsampling = upsampling
-
-    def forward(self, x_in, x_out, A, mask):
-
-        pe_in = self.pose_embedding(x_in, A)
-
-        pe_out = self.pose_embedding(x_out, A)
-
-        encoded = self.action_encoder(pe_in, A)
-
-        decoded = self.action_decoder(encoded, pe_out, A, mask)
-
-        output = self.upsampling(decoded)
-
-        return output
-
-
 
 class EncoderStack(nn.Module):
     def __init__(self, encoder_unit, qty):
@@ -49,7 +25,7 @@ class EncoderStack(nn.Module):
 
     def forward(self, x, A):
         for unit in self.encoder_units:
-            x = unit(x, A)
+            x = unit(x, A) # [N, T, V*C] -> [N, T, V*C]
         return x
 
 class DecoderStack(nn.Module):
@@ -59,9 +35,36 @@ class DecoderStack(nn.Module):
 
     def forward(self, x, memory, A, mask):
         for unit in self.decoder_units:
-            x = unit(x, memory, A, mask)
+            x = unit(x, memory, A, mask) # [N, T, V*C] -> [N, T, V*C]
         return x
 
+
+
+class ActionEmbeddingTransformer(nn.Module):
+    def __init__(self, pose_embedding, action_encoder, action_decoder, upsampling, encoder_stack_size=3, decoder_stack_size=3):
+        super().__init__()
+
+        self.pose_embedding = pose_embedding
+        self.action_encoder = EncoderStack(action_encoder, encoder_stack_size)
+        self.action_decoder = DecoderStack(action_decoder, decoder_stack_size)
+        self.upsampling = upsampling
+
+    '''
+        ---- Input dimensions ---- :
+        x_in  ->    [N, Tin, V, Co]
+        x_out ->    [N, Tout, V, Co]
+        A     ->    [K, V, V]
+        mask  ->    [1, Tout, Tout]
+    '''
+    def forward(self, x_in, x_out, A, mask):
+
+        pe_in = self.pose_embedding(x_in, A)    # [N, Tin, V, Co] -> [N, Tin, V*C]
+        pe_out = self.pose_embedding(x_out, A)  # [N, Tout, V, Co] -> [N, Tout, V*C]
+        encoded = self.action_encoder(pe_in, A) # [N, Tin, V*C] -> [N, Tin, V*C]
+        decoded = self.action_decoder(encoded, pe_out, A, mask) # [N, Tin, V*C] [N, Tout, V*C] [K, V, V] [1, Tout, Tout] -> # [N, Tout, V*C]
+        output = self.upsampling(decoded)       # [N, Tout, V*C] -> [N, Tout, V, Co]
+
+        return output
 
 
 class BetterThatBestModel(nn.Module):

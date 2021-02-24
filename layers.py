@@ -22,11 +22,11 @@ class LayerNorm(nn.Module):
         self.eps = eps
 
     def forward(self, x):
-        x = x.permute(0, 2, 3, 1).contiguous() # [N, Cout * H, T, V] -> [N, T, V, Cout * H] ;
+        x = x.permute(0, 2, 3, 1).contiguous() # [N, C, T, V] -> [N, T, V, C] ;
         mean = x.mean(-1, keepdim=True)
         std = x.std(-1, keepdim=True)
         x = self.a_2 * (x - mean) / (std + self.eps) + self.b_2
-        x = x.permute(0, 3, 1, 2).contiguous() # [N, T, V, Cout * H] -> [N, Cout * H, T, V]
+        x = x.permute(0, 3, 1, 2).contiguous() # [N, T, V, C] -> [N, C, T, V]
         return x
 
 
