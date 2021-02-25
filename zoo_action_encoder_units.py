@@ -12,9 +12,8 @@ class AttentionWithGCNEncoder(nn.Module):
 
         self.temporal_self_attention = TemporalSelfAttention(
             heads=heads,
-            num_nodes=num_nodes,
-            node_channel_in=node_channel_in,
-            node_channel_out=node_channel_mid)
+            embedding_in=num_nodes*node_channel_in,
+            embedding_out=num_nodes*node_channel_mid)
 
         self.spatial_gcn = SpatialGCN(
             in_channels=heads*node_channel_mid,
@@ -41,18 +40,20 @@ class AttentionWithGCNEncoder(nn.Module):
         return x
 
 class TransformerEncoderUnit(nn.Module):
-    def __init__(self, heads, node_channel_in, node_channel_mid, node_channel_out, num_nodes=25, kernel_size=5, dropout=0.5):
+    def __init__(self, heads, embedding_in, embedding_out, dropout=0.5):
         super().__init__()
+
+        assert embedding_out*heads == embedding_in
+
         self.self_attn = TemporalSelfAttention(
             heads=heads,
-            num_nodes=num_nodes,
-            node_channel_in=node_channel_in,
-            node_channel_out=node_channel_out)
+            embedding_in=embedding_in,
+            embedding_out=embedding_out)
 
-        self.feed_forward = PositionwiseFeedForward(node_channel_out*heads*num_nodes, node_channel_out*heads*num_nodes*2)
+        self.feed_forward = PositionwiseFeedForward(embedding_out*heads, embedding_out*heads*2)
 
-        self.sublayer1 = TransformerSublayerConnection(node_channel_out*heads*num_nodes, dropout)
-        self.sublayer2 = TransformerSublayerConnection(node_channel_out*heads*num_nodes, dropout)
+        self.sublayer1 = TransformerSublayerConnection(embedding_out*heads, dropout)
+        self.sublayer2 = TransformerSublayerConnection(embedding_out*heads, dropout)
 
     def forward(self, x, A):
         x = self.sublayer1(x, self.self_attn)

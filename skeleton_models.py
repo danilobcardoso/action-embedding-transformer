@@ -3,8 +3,9 @@ import numpy as np
 
 ntu_rgbd = {
     'num_nodes': 25,
-    'links': [(1, 2), (2, 21), (3, 21), (4, 3), (5, 21), (6, 5), (7, 6), (8, 7), (9, 21), (10, 9), (11, 10), (12, 11), (13, 1),
-                (14, 13), (15, 14), (16, 15), (17, 1), (18, 17), (19, 18), (20, 19), (22, 23), (23, 8), (24, 25), (25, 12)],
+    'center': 1,
+    'links': [(0, 1), (1, 20), (2, 20), (3, 2), (4, 20), (5, 4), (6, 5), (7, 6), (8, 20), (9, 8), (10, 9), (11, 10), (12, 0),
+                (13, 12), (14, 13), (15, 14), (16, 0), (17, 16), (18, 17), (19, 18), (21, 22), (22, 7), (23, 24), (24, 11)],
     'colors': ['#02FF00','#02FF00','#02FF00','#02FF00','#FFFF00','#FFFF00','#FFFF00','#FFFF00','#FF9802', '#FF9802', '#FF9802', '#FF9802', '#02FFFF',
             '#02FFFF','#02FFFF','#02FFFF','#FF00FF','#FF00FF','#FF00FF','#FF00FF', '#02FF00','#FFFF00','#FFFF00','#FF9802','#FF9802'],
     'node_group': [0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3,4,4,4,4,0,1,1,2,2],
@@ -13,6 +14,7 @@ ntu_rgbd = {
 
 ntu_ss_1 = {
     'num_nodes': 1,
+    'center': 0,
     'links': [],
     'colors': ['#02FF00'],
     'node_group': [0],
@@ -21,7 +23,8 @@ ntu_ss_1 = {
 
 ntu_ss_2 = {
     'num_nodes': 5,
-    'links': [(1,5), (2,5), (3,5), (4,5)],
+    'center': 1,
+    'links': [(0,4), (1,4), (2,4), (3,4)],
     'colors': ['#02FF00','#02FF00','#FFFF00','#FF9802','#02FF00'],
     'node_group': [0,0,1,2,0],
     'ss_selection': [0,3,4,8,20]
@@ -29,11 +32,17 @@ ntu_ss_2 = {
 
 ntu_ss_3 = {
     'num_nodes': 9,
-    'links': [(1,2), (1,8), (1,7), (2,9), (3,4), (3, 9), (5, 9), (6, 9)],
+    'center': 1,
+    'links': [(0,1), (0,7), (0,6), (1,8), (2,3), (2, 8), (4, 8), (5, 8)],
     'colors': ['#02FF00','#02FF00','#02FF00','#02FF00','#FFFF00','#FF9802','#02FFFF','#FF00FF', '#02FF00'],
     'node_group': [0, 0, 0, 0, 1, 2, 3, 4, 0],
     'ss_selection': [0,1,2,3,4,8,12,16,20]
 }
+
+def upsample_columns(model_from, model_to):
+    assert model_from['num_nodes'] < model_to['num_nodes']
+    return [ model_to['ss_selection'].index(e) for e in model_from['ss_selection']  ]
+
 
 def partial(sequence, model):
     return sequence[..., model['ss_selection'], :]
@@ -46,8 +55,8 @@ def get_kernel_by_group(skeleton_model):
     adj_matrix = np.zeros((kernel_size, num_node, num_node))
 
     for link in links:
-        node1 = link[0]-1
-        node2 = link[1]-1
+        node1 = link[0]
+        node2 = link[1]
         kernel1 = skeleton_model['node_group'][node1]
         kernel2 = skeleton_model['node_group'][node2]
         adj_matrix[kernel1, node1, node2] = 1

@@ -12,16 +12,14 @@ class AttentionWithGCNDecoder(nn.Module):
 
         self.temporal_self_attention = TemporalSelfAttention(
             heads=heads,
-            num_nodes=num_nodes,
-            node_channel_in=node_channel_in,
-            node_channel_out=node_channel_mid[0])
+            embedding_in=num_nodes*node_channel_in,
+            embedding_out=num_nodes*node_channel_mid[0])
 
         self.temporal_input_attention =  TemporalInputAttention(
             heads=heads,
-            num_nodes = num_nodes,
-            node_channel_in=heads*node_channel_mid[0],
-            node_channel_out=node_channel_mid[1],
-            node_memory_in=memory_channel_in)
+            embedding_in=num_nodes*heads*node_channel_mid[0],
+            embedding_out=num_nodes*node_channel_mid[1],
+            memory_in=num_nodes*memory_channel_in)
 
         self.spatial_gcn = SpatialGCN(
             in_channels=heads*node_channel_mid[1],
@@ -50,27 +48,27 @@ class AttentionWithGCNDecoder(nn.Module):
 
 
 class TransformerDecoderUnit(nn.Module):
-    def __init__(self, heads, node_channel_in, memory_channel_in, node_channel_mid, node_channel_out, num_nodes=25, kernel_size=5, dropout=0.5):
+    def __init__(self, heads, embedding_in, embedding_out, memory_in, dropout=0.5):
         super().__init__()
+
+        assert embedding_out*heads == embedding_in
 
         self.temporal_self_attention = TemporalSelfAttention(
             heads=heads,
-            num_nodes=num_nodes,
-            node_channel_in=node_channel_in,
-            node_channel_out=node_channel_mid[0])
+            embedding_in=embedding_in,
+            embedding_out=embedding_out)
 
         self.temporal_input_attention =  TemporalInputAttention(
             heads=heads,
-            num_nodes = num_nodes,
-            node_channel_in=heads*node_channel_mid[0],
-            node_channel_out=node_channel_mid[1],
-            node_memory_in=memory_channel_in)
+            embedding_in=embedding_in,
+            embedding_out=embedding_out,
+            memory_in=memory_in)
 
-        self.feed_forward = PositionwiseFeedForward(node_channel_mid[1]*heads*num_nodes, node_channel_mid[1]*heads*num_nodes*2)
+        self.feed_forward = PositionwiseFeedForward(embedding_in, embedding_in*2)
 
-        self.sublayer1 = TransformerSublayerConnection(node_channel_mid[0]*heads*num_nodes, dropout)
-        self.sublayer2 = TransformerSublayerConnection(node_channel_mid[1]*heads*num_nodes, dropout)
-        self.sublayer3 = TransformerSublayerConnection(node_channel_mid[1]*heads*num_nodes, dropout)
+        self.sublayer1 = TransformerSublayerConnection(embedding_in, dropout)
+        self.sublayer2 = TransformerSublayerConnection(embedding_in, dropout)
+        self.sublayer3 = TransformerSublayerConnection(embedding_in, dropout)
 
     def forward(self, x, m, A, mask):
         x = self.sublayer1(x, lambda x: self.temporal_self_attention(x, mask) )

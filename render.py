@@ -16,17 +16,17 @@ def animate_function(i, action, model, ax):
     axis_y = frame[:,1]
     for edge_index in range(len(edges)):
 
-        s_x = axis_x[edges[edge_index][0]-1]
-        s_y = axis_y[edges[edge_index][0]-1]
-        t_x = axis_x[edges[edge_index][1]-1]
-        t_y = axis_y[edges[edge_index][1]-1]
+        s_x = axis_x[edges[edge_index][0]]
+        s_y = axis_y[edges[edge_index][0]]
+        t_x = axis_x[edges[edge_index][1]]
+        t_y = axis_y[edges[edge_index][1]]
         line = plt.Line2D((s_x,t_x), (s_y,t_y))
         ax.add_artist(line)
     for node_index in range(len(axis_x)):
         node_color = matplotlib.colors.to_rgb(colors[node_index])
         circle = plt.Circle((axis_x[node_index], axis_y[node_index]), .05, color=node_color)
         ax.add_artist(circle)
-        ax.annotate(node_index+1, xy=(axis_x[node_index], axis_y[node_index]))
+        ax.annotate(node_index, xy=(axis_x[node_index], axis_y[node_index]))
 
 
 def animate(sequence, model):

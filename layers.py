@@ -105,15 +105,12 @@ class PositionwiseFeedForward(nn.Module):
 
 
 class TemporalSelfAttention(nn.Module):
-    def __init__(self, heads, num_nodes, node_channel_in, node_channel_out):
+    def __init__(self, heads, embedding_in, embedding_out):
         super().__init__()
         self.h = heads
-        self.v = num_nodes
-        self.node_in = node_channel_in
-        self.node_out = node_channel_out
-        self.w_keys = clones(nn.Linear(num_nodes*node_channel_in, num_nodes*node_channel_out), heads)
-        self.w_queries = clones(nn.Linear(num_nodes*node_channel_in, num_nodes*node_channel_out), heads)
-        self.w_values = clones(nn.Linear(num_nodes*node_channel_in, num_nodes*node_channel_out), heads)
+        self.w_keys = clones(nn.Linear(embedding_in, embedding_out), heads)
+        self.w_queries = clones(nn.Linear(embedding_in, embedding_out), heads)
+        self.w_values = clones(nn.Linear(embedding_in, embedding_out), heads)
 
     def forward(self, x, mask=None):
         n, t, vc = x.size() # [N, T, V*C]
@@ -122,7 +119,7 @@ class TemporalSelfAttention(nn.Module):
         queries = torch.stack([ l(x) for l in self.w_queries], dim=1)
         values = torch.stack([ l(x) for l in self.w_values], dim=1)
 
-        att = torch.matmul(queries, keys.permute(0,1,3,2)) / np.sqrt(self.node_out*self.v)
+        att = torch.matmul(queries, keys.permute(0,1,3,2)) / np.sqrt(vc)
         if mask is not None:
             att = att.masked_fill(mask == 0, -1e9)
         att = torch.softmax(att, dim=-1)
@@ -133,16 +130,12 @@ class TemporalSelfAttention(nn.Module):
         return x
 
 class TemporalInputAttention(nn.Module):
-    def __init__(self, heads, num_nodes, node_channel_in, node_channel_out, node_memory_in):
+    def __init__(self, heads, embedding_in, embedding_out, memory_in):
         super().__init__()
         self.h = heads
-        self.v = num_nodes
-        self.node_in = node_channel_in
-        self.memory_in = node_memory_in
-        self.node_out = node_channel_out
-        self.w_keys = clones(nn.Linear(num_nodes*node_channel_in, num_nodes*node_channel_out), heads)
-        self.w_queries = clones(nn.Linear(num_nodes*node_memory_in, num_nodes*node_channel_out), heads)
-        self.w_values = clones(nn.Linear(num_nodes*node_memory_in, num_nodes*node_channel_out), heads)
+        self.w_keys = clones(nn.Linear(embedding_in, embedding_out), heads)
+        self.w_queries = clones(nn.Linear(memory_in, embedding_out), heads)
+        self.w_values = clones(nn.Linear(memory_in, embedding_out), heads)
 
     def forward(self, x, m):
 
@@ -153,7 +146,7 @@ class TemporalInputAttention(nn.Module):
         queries = torch.stack([ l(m) for l in self.w_queries], dim=1)
         values = torch.stack([ l(m) for l in self.w_values], dim=1)
 
-        att = torch.matmul(queries, keys.permute(0,1,3,2)) / np.sqrt(self.node_out*self.v)
+        att = torch.matmul(queries, keys.permute(0,1,3,2)) / np.sqrt(vc)
         att = torch.softmax(att, dim=1)
 
         x = torch.matmul(att, values) #  -> [N, H, T, Cout*V]
