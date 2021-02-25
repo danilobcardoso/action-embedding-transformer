@@ -29,7 +29,7 @@ from zoo_upsampling import StepByStepUpsampling, JoaosUpsampling
 from model import ActionEmbeddingTransformer
 from layers import subsequent_mask
 
-
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 adjacency = Graph(ntu_rgbd)
 
@@ -63,7 +63,8 @@ class BetterThatBestModel(nn.Module):
             JoaosUpsampling(
                 conf_num_nodes,
                 conf_encoding_per_node*conf_num_nodes,
-                node_channel_out = 3
+                node_channel_out = 3,
+                device=device
             )
         )
 
@@ -71,7 +72,10 @@ class BetterThatBestModel(nn.Module):
         return self.model(x_in, x_out, A, mask)
 
 
-model = BetterThatBestModel()
+print('Using {}'.format(device))
+
+A = torch.from_numpy(adjacency.A).to(device, dtype=torch.float)
+model = BetterThatBestModel().to(device)
 
 for p in model.parameters():
     if p.dim() > 1:
@@ -81,20 +85,23 @@ criterion = torch.nn.MSELoss()
 
 #ntu_dataset = NTUDataset(root_dir='../ntu-rgbd-dataset/Python/raw_npy/')
 ntu_dataset = NTUDataset(root_dir='../datasets/NTURGB-D/Python/raw_npy/')
-loader = DataLoader(ntu_dataset, batch_size=100, shuffle=True)
+loader = DataLoader(ntu_dataset, batch_size=512, shuffle=True)
 #optimizer = torch.optim.SGD(model.parameters(), lr=0.00005)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.000005)
 
-A = torch.from_numpy(adjacency.A).float()
+
 
 
 
 for epoch in range(20):
     pbar = tqdm(loader, desc='Initializing ...')
     for data in pbar:
-        data = data.float()
-        n, t, v, c = data.size()
-        out = model(data, data, A, subsequent_mask(t))
+        data = data.to(device, dtype=torch.float)
+
+        n_out, c_out, t_out, v_out = data.size()
+        mask = subsequent_mask(t_out).to(device, dtype=torch.float)
+
+        out = model(data, data, A, mask)
 
         loss = criterion(out, data)
         loss.backward()

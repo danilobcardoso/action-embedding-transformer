@@ -78,26 +78,26 @@ class StepByStepUpsampling(nn.Module):
 
 
 class JoaosUpsampling(nn.Module):
-    def __init__(self, num_nodes, node_encoding, node_channel_out=3):
+    def __init__(self, num_nodes, node_encoding, node_channel_out=3, device='cpu'):
         super().__init__()
 
         self.graph25 = Graph(ntu_rgbd)
         cols1 = upsample_columns(ntu_ss_3, ntu_rgbd)
-        self.ca25 = torch.tensor(self.graph25.A, dtype=torch.float32, requires_grad=False)
-        self.a25 = torch.tensor(self.graph25.getA(cols1), dtype=torch.float32, requires_grad=False)
+        self.ca25 = torch.tensor(self.graph25.A, dtype=torch.float32, requires_grad=False).to(device)
+        self.a25 = torch.tensor(self.graph25.getA(cols1), dtype=torch.float32, requires_grad=False).to(device)
 
         self.graph9 = Graph(ntu_ss_3)
         cols2 = upsample_columns(ntu_ss_2, ntu_ss_3)
-        self.ca9 = torch.tensor(self.graph9.A, dtype=torch.float32, requires_grad=False)
-        self.a9 = torch.tensor(self.graph9.getA(cols2), dtype=torch.float32, requires_grad=False)
+        self.ca9 = torch.tensor(self.graph9.A, dtype=torch.float32, requires_grad=False).to(device)
+        self.a9 = torch.tensor(self.graph9.getA(cols2), dtype=torch.float32, requires_grad=False).to(device)
 
         self.graph5 = Graph(ntu_ss_2)
         cols3 = upsample_columns(ntu_ss_1, ntu_ss_2)
-        self.ca5 = torch.tensor(self.graph5.A, dtype=torch.float32, requires_grad=False)
-        self.a5 = torch.tensor(self.graph5.getA(cols3), dtype=torch.float32, requires_grad=False)
+        self.ca5 = torch.tensor(self.graph5.A, dtype=torch.float32, requires_grad=False).to(device)
+        self.a5 = torch.tensor(self.graph5.getA(cols3), dtype=torch.float32, requires_grad=False).to(device)
 
         self.graph1 = Graph(ntu_ss_1)
-        self.ca1 = torch.tensor(self.graph1.A, dtype=torch.float32, requires_grad=False)
+        self.ca1 = torch.tensor(self.graph1.A, dtype=torch.float32, requires_grad=False).to(device)
 
 
         self.spatial_gcn_1 = SpatialGCN(node_encoding, 64, self.ca1.size(0))
