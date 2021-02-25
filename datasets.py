@@ -19,7 +19,7 @@ class NTUDataset(Dataset):
         if self.transform:
             pose_data = self.transform(pose_data)
 
-        pose_data = pose_data.transpose(2, 0, 1)
+        # pose_data = pose_data.transpose(2, 0, 1)
         return pose_data
 
 class CropSequence(object):

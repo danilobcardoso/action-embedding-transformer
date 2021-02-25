@@ -119,11 +119,8 @@ class JoaosUpsampling(nn.Module):
 
     def forward(self, x):
         "Expected input -> [ N, T, V*C]"
-        print("1 -> {}".format(x.size()))
         x = to_graph_form(x, 1) # [ N, T, C] -> [ N, T, 1, C]
         x = to_gcn_layer(x, 1)  # [ N, T, 1, C] ->  [N, C, T, 1]
-
-        print("1 -> {}".format(x.size()))
 
         x = self.norm1(x)
         x = self.spatial_gcn_1(x, self.ca1) # [N, C, T, 1] ->  [N, 64, T, 1]
