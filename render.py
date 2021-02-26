@@ -37,3 +37,14 @@ def animate(sequence, model):
                                             fargs=(sequence, model ,ax),
                                             frames=len(sequence))
     return HTML(ani.to_jshtml())
+
+
+def save_animation(sequence, model, path):
+    fig = plt.figure()
+    ax = plt.axes()
+    ani = matplotlib.animation.FuncAnimation(fig,
+                                            animate_function,
+                                            fargs=(sequence, model ,ax),
+                                            frames=len(sequence))
+
+    ani.save(path, writer='imagemagick', fps=5)
