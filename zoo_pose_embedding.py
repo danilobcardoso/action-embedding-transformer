@@ -4,6 +4,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
+from graph import Graph
+from skeleton_models import ntu_rgbd, get_kernel_by_group, ntu_ss_1, ntu_ss_2, ntu_ss_3, partial, upsample_columns
+
 from layers import SpatialGCN, PositionalEncoding, to_embedding_form, to_gcn_layer, from_gcn_layer
 
 class TwoLayersGCNPoseEmbedding(nn.Module):
@@ -33,7 +36,7 @@ class TwoLayersGCNPoseEmbedding(nn.Module):
 
 
 class JoaosDownsampling(nn.Module):
-    def __init__(self, num_nodes, node_encoding, node_channel_in=3, device='cpu'):
+    def __init__(self, num_nodes, node_encoding, node_channel_in=3, device='cpu', dropout=0.1):
         super().__init__()
 
         self.graph25 = Graph(ntu_rgbd)
@@ -74,7 +77,7 @@ class JoaosDownsampling(nn.Module):
         self.positional_encoding = PositionalEncoding(node_encoding, dropout )
 
 
-    def forward(self, x):
+    def forward(self, x, A):
         "Expected input -> [ N, T, V, C]"
         n, t, v, c = x.size()
 
