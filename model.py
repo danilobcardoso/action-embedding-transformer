@@ -67,6 +67,18 @@ class ActionEmbeddingTransformer(nn.Module):
         return output
 
 
+class SimplePoseEncoderDecoder(nn.Module):
+    def __init__(self, pose_embedding, up_sampling):
+        super().__init__()
+        self.pose_embedding = pose_embedding
+        self.upsampling = up_sampling
+
+    def forward(self, x, A):
+        encoded = self.pose_embedding(x, A)    # [N, Tin, V, Co] -> [N, Tin, V*C]
+        decoded = self.upsampling(encoded)       # [N, Tout, V*C] -> [N, Tout, V, Co]
+        return decoded
+
+
 class BetterThatBestModel(nn.Module):
     def __init__(self):
         super().__init__()

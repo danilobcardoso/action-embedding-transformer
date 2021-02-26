@@ -148,10 +148,10 @@ class JoaosUpsampling(nn.Module):
 
 
 class Weight(nn.Module):
-    def __init__(self,channels,output_nodes):
+    def __init__(self,kernel,output_nodes):
         super(Weight,self).__init__()
         # self.weight = torch.nn.Parameter(torch.rand(channels, output_nodes, requires_grad=True))
-        self.weight = torch.nn.Parameter(torch.rand(2, output_nodes, requires_grad=True))
+        self.weight = torch.nn.Parameter(torch.rand(kernel, output_nodes, requires_grad=True))
 
         self.weight.data.uniform_(-1, 1)
 

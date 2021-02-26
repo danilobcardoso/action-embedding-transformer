@@ -18,7 +18,7 @@ from IPython.display import display
 
 from skeleton_models import ntu_rgbd, ntu_ss_1, ntu_ss_2, ntu_ss_3
 from graph import Graph
-from render import animate
+from render import animate, save_animation
 from datasets import NTUDataset
 
 # Model components
@@ -111,3 +111,6 @@ for epoch in range(20):
         pbar.set_description("Curr loss = {:.4f}".format(loss.item()))
 
     print('Epoch {} loss = {}'.format(epoch, loss.item()))
+    torch.save(model.state_dict(), 'outputs/models/simple_encoder_epoch_{}.pth'.format(epoch))
+    save_animation(data[0], ntu_rgbd, 'outputs/animations/output_example_epoch_{}.gif'.format(epoch))
+    save_animation(out[0], ntu_rgbd, 'outputs/animations/sample_example_epoch_{}.gif'.format(epoch))
