@@ -83,7 +83,7 @@ for p in model.parameters():
 
 criterion = torch.nn.MSELoss()
 
-#ntu_dataset = NTUDataset(root_dir='../ntu-rgbd-dataset/Python/raw_npy/')
+#ntu_dataset = NTUDataset(root_dir='../ntu-rgbd-dataset/data/raw_npy/')
 ntu_dataset = NTUDataset(root_dir='../datasets/NTURGB-D/Python/raw_npy/')
 loader = DataLoader(ntu_dataset, batch_size=512, shuffle=True)
 #optimizer = torch.optim.SGD(model.parameters(), lr=0.00005)
@@ -98,7 +98,7 @@ for epoch in range(20):
     for data in pbar:
         data = data.to(device, dtype=torch.float)
 
-        n_out, c_out, t_out, v_out = data.size()
+        n_out, t_out, v_out, c_out = data.size()
         mask = subsequent_mask(t_out).to(device, dtype=torch.float)
 
         out = model(data, data, A, mask)

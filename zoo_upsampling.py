@@ -100,18 +100,18 @@ class JoaosUpsampling(nn.Module):
         self.ca1 = torch.tensor(self.graph1.A, dtype=torch.float32, requires_grad=False).to(device)
 
 
-        self.spatial_gcn_1 = SpatialGCN(node_encoding, 64, self.ca1.size(0))
-        self.spatial_gcn_2 = SpatialGCN(64, 32, self.ca5.size(0))
-        self.spatial_gcn_3 = SpatialGCN(32, 16, self.ca9.size(0))
-        self.spatial_gcn_4 = SpatialGCN(16, node_channel_out, self.ca25.size(0))
+        self.spatial_gcn_1 = SpatialGCN(node_encoding, 512, self.ca1.size(0))
+        self.spatial_gcn_2 = SpatialGCN(512, 128, self.ca5.size(0))
+        self.spatial_gcn_3 = SpatialGCN(128, 32, self.ca9.size(0))
+        self.spatial_gcn_4 = SpatialGCN(32, node_channel_out, self.ca25.size(0), activate=False)
 
         self.up_sampling_1 = UpSampling(1,5,self.a5)
         self.up_sampling_2 = UpSampling(5,9,self.a9)
         self.up_sampling_3 = UpSampling(9,25,self.a25)
 
         self.norm1 = nn.BatchNorm2d(node_encoding)
-        self.norm2 = nn.BatchNorm2d(64)
-        self.norm3 = nn.BatchNorm2d(32)
+        self.norm2 = nn.BatchNorm2d(512)
+        self.norm3 = nn.BatchNorm2d(128)
 
 
         self.lrelu = nn.LeakyReLU()
@@ -123,21 +123,21 @@ class JoaosUpsampling(nn.Module):
         x = to_gcn_layer(x, 1)  # [ N, T, 1, C] ->  [N, C, T, 1]
 
         x = self.norm1(x)
-        x = self.spatial_gcn_1(x, self.ca1) # [N, C, T, 1] ->  [N, 64, T, 1]
-        x = self.up_sampling_1(x)           # [N, 64, T, 1] ->  [N, 64, T, 5]
+        x = self.spatial_gcn_1(x, self.ca1) # [N, C, T, 1] ->  [N, 512, T, 1]
+        x = self.up_sampling_1(x)           # [N, 512, T, 1] ->  [N, 512, T, 5]
         x = self.lrelu(x)
 
         x = self.norm2(x)
-        x = self.spatial_gcn_2(x, self.ca5) # [N, 64, T, 5] ->  [N, 32, T, 5]
-        x = self.up_sampling_2(x)           # [N, 32, T, 5] ->  [N, 32, T, 9]
+        x = self.spatial_gcn_2(x, self.ca5) # [N, 512, T, 5] ->  [N, 128, T, 5]
+        x = self.up_sampling_2(x)           # [N, 128, T, 5] ->  [N, 128, T, 9]
         x = self.lrelu(x)
 
         x = self.norm3(x)
-        x = self.spatial_gcn_3(x, self.ca9) # [N, 32, T, 9] ->  [N, 16, T, 9]
-        x = self.up_sampling_3(x)           # [N, 16, T, 9] ->  [N, 16, T, 25]
+        x = self.spatial_gcn_3(x, self.ca9) # [N, 128, T, 9] ->  [N, 32, T, 9]
+        x = self.up_sampling_3(x)           # [N, 32, T, 9] ->  [N, 32, T, 25]
         x = self.lrelu(x)
 
-        x = self.spatial_gcn_4(x, self.ca25)# [N, 16, T, 25] ->  [N, Cout, T, 25]
+        x = self.spatial_gcn_4(x, self.ca25)# [N, 32, T, 25] ->  [N, Cout, T, 25]
 
         x = from_gcn_layer(x, num_nodes=25)
 
