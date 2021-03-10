@@ -6,7 +6,7 @@ import numpy as np
 
 from layers import SpatialGCN, clones, to_gcn_layer, from_gcn_layer, to_graph_form, to_embedding_form
 
-from skeleton_models import ntu_rgbd, get_kernel_by_group, ntu_ss_1, ntu_ss_2, ntu_ss_3, partial, upsample_columns
+from skeleton_models import ntu_rgbd, get_kernel_by_group, ntu_ss_1, ntu_ss_2, ntu_ss_3, ntu_ss_4, partial, upsample_columns
 
 from graph import Graph
 
@@ -82,19 +82,24 @@ class JoaosUpsampling(nn.Module):
         super().__init__()
 
         self.graph25 = Graph(ntu_rgbd)
-        cols1 = upsample_columns(ntu_ss_3, ntu_rgbd)
+        cols1 = upsample_columns(ntu_ss_4, ntu_rgbd)
         self.ca25 = torch.tensor(self.graph25.A, dtype=torch.float32, requires_grad=False).to(device)
         self.a25 = torch.tensor(self.graph25.getA(cols1), dtype=torch.float32, requires_grad=False).to(device)
 
+        self.graph15 = Graph(ntu_ss_4)
+        cols2 = upsample_columns(ntu_ss_3, ntu_ss_4)
+        self.ca15 = torch.tensor(self.graph15.A, dtype=torch.float32, requires_grad=False).to(device)
+        self.a15 = torch.tensor(self.graph15.getA(cols2), dtype=torch.float32, requires_grad=False).to(device)
+
         self.graph9 = Graph(ntu_ss_3)
-        cols2 = upsample_columns(ntu_ss_2, ntu_ss_3)
+        cols3 = upsample_columns(ntu_ss_2, ntu_ss_3)
         self.ca9 = torch.tensor(self.graph9.A, dtype=torch.float32, requires_grad=False).to(device)
-        self.a9 = torch.tensor(self.graph9.getA(cols2), dtype=torch.float32, requires_grad=False).to(device)
+        self.a9 = torch.tensor(self.graph9.getA(cols3), dtype=torch.float32, requires_grad=False).to(device)
 
         self.graph5 = Graph(ntu_ss_2)
-        cols3 = upsample_columns(ntu_ss_1, ntu_ss_2)
+        cols4 = upsample_columns(ntu_ss_1, ntu_ss_2)
         self.ca5 = torch.tensor(self.graph5.A, dtype=torch.float32, requires_grad=False).to(device)
-        self.a5 = torch.tensor(self.graph5.getA(cols3), dtype=torch.float32, requires_grad=False).to(device)
+        self.a5 = torch.tensor(self.graph5.getA(cols4), dtype=torch.float32, requires_grad=False).to(device)
 
         self.graph1 = Graph(ntu_ss_1)
         self.ca1 = torch.tensor(self.graph1.A, dtype=torch.float32, requires_grad=False).to(device)
@@ -102,16 +107,21 @@ class JoaosUpsampling(nn.Module):
 
         self.spatial_gcn_1 = SpatialGCN(node_encoding, 512, self.ca1.size(0))
         self.spatial_gcn_2 = SpatialGCN(512, 128, self.ca5.size(0))
-        self.spatial_gcn_3 = SpatialGCN(128, 32, self.ca9.size(0))
-        self.spatial_gcn_4 = SpatialGCN(32, node_channel_out, self.ca25.size(0), activate=False)
+        self.spatial_gcn_3 = SpatialGCN(128, 64, self.ca9.size(0))
+        self.spatial_gcn_4 = SpatialGCN(64, 32, self.ca15.size(0))
+        self.spatial_gcn_5 = SpatialGCN(32, 16, self.ca25.size(0), activate=False)
+        self.spatial_gcn_6 = SpatialGCN(16, node_channel_out, self.ca25.size(0), activate=False)
 
-        self.up_sampling_1 = UpSampling(1,5,self.a5)
-        self.up_sampling_2 = UpSampling(5,9,self.a9)
-        self.up_sampling_3 = UpSampling(9,25,self.a25)
+        self.up_sampling_1 = UpSampling(1, 5, self.a5)
+        self.up_sampling_2 = UpSampling(5, 9, self.a9)
+        self.up_sampling_3 = UpSampling(9, 15, self.a15)
+        self.up_sampling_4 = UpSampling(15, 25, self.a25)
 
         self.norm1 = nn.BatchNorm2d(node_encoding)
         self.norm2 = nn.BatchNorm2d(512)
         self.norm3 = nn.BatchNorm2d(128)
+        self.norm4 = nn.BatchNorm2d(64)
+        self.norm5 = nn.BatchNorm2d(32)
 
 
         self.lrelu = nn.LeakyReLU()
@@ -133,13 +143,73 @@ class JoaosUpsampling(nn.Module):
         x = self.lrelu(x)
 
         x = self.norm3(x)
-        x = self.spatial_gcn_3(x, self.ca9) # [N, 128, T, 9] ->  [N, 32, T, 9]
-        x = self.up_sampling_3(x)           # [N, 32, T, 9] ->  [N, 32, T, 25]
+        x = self.spatial_gcn_3(x, self.ca9) # [N, 128, T, 9] ->  [N, 64, T, 9]
+        x = self.up_sampling_3(x)           # [N, 64, T, 9] ->  [N, 64, T, 15]
         x = self.lrelu(x)
 
-        x = self.spatial_gcn_4(x, self.ca25)# [N, 32, T, 25] ->  [N, Cout, T, 25]
+        x = self.norm4(x)
+        x = self.spatial_gcn_4(x, self.ca15) # [N, 64, T, 15] ->  [N, 32, T, 15]
+        x = self.up_sampling_4(x)            # [N, 32, T, 15] ->  [N, 32, T, 25]
+        x = self.lrelu(x)
+
+
+        x = self.norm5(x)
+        x = self.spatial_gcn_5(x, self.ca25)# [N, 32, T, 25] ->  [N, Cout, T, 25]
+        x = self.spatial_gcn_6(x, self.ca25)
 
         x = from_gcn_layer(x, num_nodes=25)
+
+        return x
+
+
+class SuperSimpleUpsampling(nn.Module):
+    def __init__(self, num_nodes, node_encoding, node_channel_out=3, device='cpu'):
+        super().__init__()
+
+        self.num_nodes = num_nodes
+
+        self.graph25 = Graph(ntu_rgbd, strategy='group')
+        cols1 = upsample_columns(ntu_ss_1, ntu_rgbd)
+        self.ca25 = torch.tensor(self.graph25.A, dtype=torch.float32, requires_grad=False).to(device)
+        self.a25 = torch.tensor(self.graph25.getA(cols1), dtype=torch.float32, requires_grad=False).to(device)
+
+
+        self.graph1 = Graph(ntu_ss_1, strategy='group')
+        self.ca1 = torch.tensor(self.graph1.A, dtype=torch.float32, requires_grad=False).to(device)
+
+        self.linear1 = nn.Linear(node_encoding, num_nodes*node_channel_out)
+        self.linear2 = nn.Linear( num_nodes*node_channel_out, num_nodes*node_channel_out)
+
+
+        self.spatial_gcn_1 = SpatialGCN(node_encoding, 128, self.ca1.size(0))
+        self.spatial_gcn_2 = SpatialGCN(128, node_channel_out, self.ca1.size(0))
+
+        self.up_sampling_1 = UpSampling(1,25,self.a25)
+
+        self.norm1 = nn.BatchNorm1d(node_encoding)
+        #self.norm1 = nn.BatchNorm2d(node_encoding)
+
+        self.lrelu = nn.LeakyReLU()
+
+
+    def forward(self, x):
+        "Expected input -> [ N, T, V*C]"
+        #x = x.permute(0, 2, 1).contiguous()
+        #x = self.norm1(x)
+        #x = x.permute(0, 2, 1).contiguous()
+        x = self.linear1(x)
+        x = F.relu(x)
+        x = self.linear2(x)
+        x = to_graph_form(x, self.num_nodes) # [ N, T, C] -> [ N, T, 1, C]
+        #x = to_graph_form(x, 1) # [ N, T, C] -> [ N, T, 1, C]
+        #x = to_gcn_layer(x, 1)  # [ N, T, 1, C] ->  [N, C, T, 1]
+
+        # x = self.norm1(x)
+        #x = self.up_sampling_1(x)           # [N, 512, T, 1] ->  [N, 512, T, 25]
+        #x = self.spatial_gcn_1(x, self.ca25) # [N, Cin, T, 25] ->  [N, 128, T, 25]
+        #x = self.spatial_gcn_2(x, self.ca25) # [N, 128, T, 25] ->  [N, Cout, T, 25]
+
+        #x = from_gcn_layer(x, num_nodes=25)
 
         return x
 
