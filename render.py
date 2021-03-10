@@ -10,7 +10,8 @@ def animate_function(i, action, model, ax):
     num_nodes = model['num_nodes']
     colors = model['colors']
     ax.clear()
-    ax.axis([-.5, 1.0, -1.5 ,1.0])
+    #ax.axis([-.5, 1.0, -1.5 ,1.0])
+    ax.axis([0, 2.0, 0 ,2.0])
     frame = action[i]
     axis_x = frame[:,0]
     axis_y = frame[:,1]
@@ -48,3 +49,4 @@ def save_animation(sequence, model, path):
                                             frames=len(sequence))
 
     ani.save(path, writer='imagemagick', fps=5)
+    plt.close()
