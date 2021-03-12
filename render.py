@@ -1,5 +1,6 @@
 import matplotlib
 from matplotlib import pyplot as plt
+from matplotlib import animation as anim
 
 from IPython.display import HTML
 from IPython.display import display
@@ -33,7 +34,7 @@ def animate_function(i, action, model, ax):
 def animate(sequence, model):
     fig = plt.figure()
     ax = plt.axes()
-    ani = matplotlib.animation.FuncAnimation(fig,
+    ani = anim.FuncAnimation(fig,
                                             animate_function,
                                             fargs=(sequence, model ,ax),
                                             frames=len(sequence))
@@ -43,7 +44,7 @@ def animate(sequence, model):
 def save_animation(sequence, model, path):
     fig = plt.figure()
     ax = plt.axes()
-    ani = matplotlib.animation.FuncAnimation(fig,
+    ani = anim.FuncAnimation(fig,
                                             animate_function,
                                             fargs=(sequence, model ,ax),
                                             frames=len(sequence))
