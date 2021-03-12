@@ -39,6 +39,15 @@ ntu_ss_3 = {
     'ss_selection': [0,1,2,3,4,8,12,16,20]
 }
 
+ntu_ss_4 = {
+    'num_nodes': 15,
+    'center': 1,
+    'links': [(0, 1), (0, 10), (0,12), (1, 14), (2, 3), (2, 14), (4, 14), (4, 5), (5, 6), (7, 14), (7, 8), (8, 9), (10, 11), (12, 13)],
+    'colors': ['#02FF00','#02FF00','#02FF00','#02FF00','#FFFF00','#FFFF00','#FFFF00','#FF9802','#FF9802','#FF9802','#02FFFF','#02FFFF','#FF00FF','#FF00FF','#02FF00'],
+    'node_group': [0, 0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 3, 4, 4, 0],
+    'ss_selection': [0,1,2,3,4,5,7,8,9,11,12,14,16,18,20]
+}
+
 def upsample_columns(model_from, model_to):
     assert model_from['num_nodes'] < model_to['num_nodes']
     return [ model_to['ss_selection'].index(e) for e in model_from['ss_selection']  ]

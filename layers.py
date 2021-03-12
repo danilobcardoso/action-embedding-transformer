@@ -57,7 +57,7 @@ class LayerNorm(nn.Module):
 
 
 class SpatialGCN(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size):
+    def __init__(self, in_channels, out_channels, kernel_size, activate=True):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -65,10 +65,14 @@ class SpatialGCN(nn.Module):
         self.conv = nn.Conv2d(in_channels,
                       out_channels * kernel_size,
                       kernel_size=(1, 1))
+        self.activate = activate
+        if not activate:
+            print('Warn: not activated')
 
     def forward(self, x, A):
         out = self.conv(x) # [N,Cin,T,V] -> [N, K * Cout, T, V]
-        out = F.relu(out)
+        if self.activate:
+            out = F.relu(out)
         n, kc, t, v = out.size()
         k = self.kernel_size
         c_in = self.in_channels

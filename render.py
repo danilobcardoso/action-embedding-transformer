@@ -1,5 +1,7 @@
 import matplotlib
 from matplotlib import pyplot as plt
+from matplotlib import animation as anim
+
 
 from IPython.display import HTML
 from IPython.display import display
@@ -10,7 +12,8 @@ def animate_function(i, action, model, ax):
     num_nodes = model['num_nodes']
     colors = model['colors']
     ax.clear()
-    ax.axis([-.5, 1.0, -1.5 ,1.0])
+    #ax.axis([-.5, 1.0, -1.5 ,1.0])
+    ax.axis([0, 2.0, 0 ,2.0])
     frame = action[i]
     axis_x = frame[:,0]
     axis_y = frame[:,1]
@@ -32,7 +35,7 @@ def animate_function(i, action, model, ax):
 def animate(sequence, model):
     fig = plt.figure()
     ax = plt.axes()
-    ani = matplotlib.animation.FuncAnimation(fig,
+    ani = anim.FuncAnimation(fig,
                                             animate_function,
                                             fargs=(sequence, model ,ax),
                                             frames=len(sequence))
@@ -42,9 +45,10 @@ def animate(sequence, model):
 def save_animation(sequence, model, path):
     fig = plt.figure()
     ax = plt.axes()
-    ani = matplotlib.animation.FuncAnimation(fig,
+    ani = anim.FuncAnimation(fig,
                                             animate_function,
                                             fargs=(sequence, model ,ax),
                                             frames=len(sequence))
 
     ani.save(path, writer='imagemagick', fps=5)
+    plt.close()
