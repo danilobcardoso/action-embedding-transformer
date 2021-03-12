@@ -129,7 +129,7 @@ for epoch in pbar:
     if epoch == 0:
         save_animation(data[0], skeleton_model, 'outputs/animations/a_sample_example_epoch_{}.gif'.format(epoch))
 
-    if epoch % 100 = 99:
+    if epoch % 100 == 99:
         wandb.log({'epoch': epoch, 'loss': loss.item()})
 
     if epoch % 1000 == 999:
