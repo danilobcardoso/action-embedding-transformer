@@ -24,13 +24,12 @@ from render import animate, save_animation
 from datasets import NTUDataset
 
 # Model components
-from zoo_pose_embedding import TwoLayersGCNPoseEmbedding
+from zoo_pose_embedding import TwoLayersGCNPoseEmbedding, JoaosDownsampling
 from zoo_action_encoder_units import TransformerEncoderUnit
 from zoo_action_decoder_units import TransformerDecoderUnit
 from zoo_upsampling import StepByStepUpsampling, JoaosUpsampling
 from model import ActionEmbeddingTransformer
 from layers import subsequent_mask
-
 
 wandb.init(project="action-embedding-transformer")
 
