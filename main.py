@@ -130,12 +130,13 @@ for epoch in pbar:
         save_animation(data[0], skeleton_model, 'outputs/animations/a_sample_example_epoch_{}.gif'.format(epoch))
 
     if epoch % 100 == 99:
-        wandb.log({'epoch': epoch, 'loss': loss.item()})
+        wandb.log({'loss': loss.item()})
 
     if epoch % 1000 == 999:
         print('Epoch {} loss = {}'.format(epoch, loss.item()))
         # torch.save(model.state_dict(), 'outputs/models/simple_encoder_epoch_{}.pth'.format(epoch))
         # save_animation(data[0], ntu_rgbd, 'outputs/animations/sample_example_epoch_{}.gif'.format(epoch))
-        animation_path = 'outputs/animations/out_example_epoch_{}.gif'.format(epoch)
+        animation_name = 'out_epoch_{}'.format(epoch)
+        animation_path = 'outputs/animations/{}.gif'.format(animation_name)
         save_animation(out[0], skeleton_model, animation_path)
-        wandb.log({"video": wandb.Video(animation_path, fps=30, format="gif")})
+        wandb.log({animation_name: wandb.Video(animation_path, fps=30, format="gif")})
