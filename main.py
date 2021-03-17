@@ -95,7 +95,8 @@ criterion = torch.nn.L1Loss()
 
 composed = transforms.Compose([Normalize(),
                                SelectDimensions(2),
-                               SelectSubSample(skeleton_model)
+                               SelectSubSample(skeleton_model),
+                               CropSequence(41),
                               ])
 
 # ntu_dataset = NTUDataset(root_dir='../ntu-rgbd-dataset/data/sel_npy/', transform=composed)
@@ -111,7 +112,7 @@ def collate(batch):
     return torch.from_numpy(batch)
 
 loader = DataLoader(ntu_dataset,
-                    batch_size=512,
+                    batch_size=32,
                     shuffle=True,
                     collate_fn=collate)
 
@@ -143,14 +144,15 @@ for epoch in pbar:
     if epoch == 0:
         save_animation(data[0], skeleton_model, 'outputs/animations/a_sample_example_epoch_{}.gif'.format(epoch))
 
-    if epoch % 100 == 99:
+    if epoch % 10 == 9:
         wandb.log({'loss': loss.item()})
 
-    if epoch % 1000 == 999:
+    if epoch % 100 == 99:
         print('Epoch {} loss = {}'.format(epoch, loss.item()))
         # torch.save(model.state_dict(), 'outputs/models/simple_encoder_epoch_{}.pth'.format(epoch))
         # save_animation(data[0], ntu_rgbd, 'outputs/animations/sample_example_epoch_{}.gif'.format(epoch))
         animation_name = 'out_epoch_{}'.format(epoch)
+        save_animation(data[0], skeleton_model, 'outputs/animations/a_sample_example_epoch_{}.gif'.format(epoch))
         animation_path = 'outputs/animations/{}.gif'.format(animation_name)
         save_animation(out[0], skeleton_model, animation_path)
         wandb.log({animation_name: wandb.Video(animation_path, fps=30, format="gif")})

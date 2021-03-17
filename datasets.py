@@ -7,6 +7,7 @@ class NTUDataset(Dataset):
         self.root_dir = root_dir
         self.transform = transform #root_dir
         self.files = glob.glob(root_dir+'*.npy')
+        print('Num files = {}'.format(len(self.files)))
 
     def __len__(self):
         return len(self.files)
@@ -37,11 +38,14 @@ class SelectDimensions(object):
         return sample[:,:,0:self.num_dimensions]
 
 class CropSequence(object):
-    def __init__(self, lenght):
-        self.lenght = lenght
+    def __init__(self, length):
+        self.length = length
 
     def __call__(self, sample):
-        return sample[0:self.lenght]
+        total_length = sample.shape[0]
+        tbd = total_length - self.length
+        cut_at = int(tbd/2)
+        return sample[cut_at:cut_at+self.length]
 
 class Normalize(object):
     def __init__(self):
