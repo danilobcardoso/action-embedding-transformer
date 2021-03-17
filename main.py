@@ -1,5 +1,3 @@
-import wandb
-
 import os, glob
 import math, copy, time
 
@@ -10,6 +8,7 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils
 
 from tqdm import tqdm, trange
+import wandb
 
 import numpy as np
 
@@ -99,9 +98,24 @@ composed = transforms.Compose([Normalize(),
                                SelectSubSample(skeleton_model)
                               ])
 
-ntu_dataset = NTUDataset(root_dir='../ntu-rgbd-dataset/data/sel_npy/', transform=composed)
-#ntu_dataset = NTUDataset(root_dir='../datasets/NTURGB-D/Python/sel_npy/', transform=composed)
-loader = DataLoader(ntu_dataset, batch_size=512, shuffle=True)
+# ntu_dataset = NTUDataset(root_dir='../ntu-rgbd-dataset/data/sel_npy/', transform=composed)
+ntu_dataset = NTUDataset(root_dir='../datasets/NTURGB-D/Python/sel_npy/', transform=composed)
+
+def collate(batch):
+    batch = list(filter(lambda x:x is not None, batch))
+    lengths = list(map(lambda x: x.shape[0], batch))
+    min_length = min(lengths)
+    batch = np.array(list(map(lambda x: x[:min_length], batch)))
+    if len(batch) == 0:
+        raise Exception("No sample on batch")
+    return torch.from_numpy(batch)
+
+loader = DataLoader(ntu_dataset,
+                    batch_size=512,
+                    shuffle=True,
+                    collate_fn=collate)
+
+
 optimizer = torch.optim.SGD(model.parameters(), lr=0.2)
 
 wandb.watch(model)

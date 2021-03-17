@@ -94,9 +94,21 @@ composed = transforms.Compose([Normalize(),
                                SelectSubSample(skeleton_model)
                               ])
 
-ntu_dataset = NTUDataset(root_dir='../ntu-rgbd-dataset/data/sel_npy/', transform=composed)
-#ntu_dataset = NTUDataset(root_dir='../datasets/NTURGB-D/Python/sel_npy/', transform=composed)
-loader = DataLoader(ntu_dataset, batch_size=512, shuffle=True)
+
+def collate(batch):
+    batch = list(filter(lambda x:x is not None, batch))
+    if len(batch) == 0:
+        raise Exception("No sample on batch")
+    print(batch)
+    return torch.utils.data.dataloader.default_collate(batch)
+
+#ntu_dataset = NTUDataset(root_dir='../ntu-rgbd-dataset/data/sel_npy/', transform=composed)
+ntu_dataset = NTUDataset(root_dir='../datasets/NTURGB-D/Python/sel_npy/', transform=composed)
+loader = DataLoader(ntu_dataset,
+                    batch_size=512,
+                    shuffle=True,
+                    collate_fn=collate)
+
 optimizer = torch.optim.SGD(model.parameters(), lr=0.2)
 
 
