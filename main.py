@@ -95,8 +95,7 @@ criterion = torch.nn.L1Loss()
 
 composed = transforms.Compose([Normalize(),
                                SelectDimensions(2),
-                               SelectSubSample(skeleton_model),
-                               CropSequence(41),
+                               SelectSubSample(skeleton_model)
                               ])
 
 # ntu_dataset = NTUDataset(root_dir='../ntu-rgbd-dataset/data/sel_npy/', transform=composed)
