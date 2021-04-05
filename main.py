@@ -21,7 +21,7 @@ from IPython.display import display
 from skeleton_models import ntu_rgbd, ntu_ss_1, ntu_ss_2, ntu_ss_3
 from graph import Graph
 from render import animate, save_animation
-from datasets import NTUDataset, Normalize, CropSequence, SelectDimensions, SelectSubSample
+from datasets import NTUBasicDataset, NTUProblem1Dataset, Normalize, CropSequence, SelectDimensions, SelectSubSample
 
 # Model components
 from zoo_pose_embedding import TwoLayersGCNPoseEmbedding, JoaosDownsampling
@@ -98,10 +98,10 @@ composed = transforms.Compose([Normalize(),
                                SelectSubSample(skeleton_model)
                               ])
 
-ntu_dataset = NTUDataset(root_dir='../ntu-rgbd-dataset/data/raw_npy/', transform=composed)
-# ntu_dataset = NTUDataset(root_dir='../datasets/NTURGB-D/Python/sel_npy/', transform=composed)
+#ntu_dataset = NTUProblem1Dataset(root_dir='../ntu-rgbd-dataset/data/raw_npy/', transform=composed)
+ntu_dataset = NTUProblem1Dataset(root_dir='../datasets/NTURGB-D/Python/sel_npy/', transform=composed)
 
-def collate(batch):
+def collate_single(batch):
     batch = list(filter(lambda x:x is not None, batch))
     lengths = list(map(lambda x: x.shape[0], batch))
     min_length = min(lengths)
@@ -110,10 +110,32 @@ def collate(batch):
         raise Exception("No sample on batch")
     return torch.from_numpy(batch)
 
+def collate_triple(batch):
+    eis = list(map(lambda x: x[0], batch))
+    dis = list(map(lambda x: x[1], batch))
+    gts = list(map(lambda x: x[2], batch))
+
+    eis_lengths = list(map(lambda x: x.shape[0], eis))
+    dis_lengths = list(map(lambda x: x.shape[0], dis))
+    gts_lengths = list(map(lambda x: x.shape[0], gts))
+
+    min_eis = min(eis_lengths)
+    min_dis = min(dis_lengths)
+    min_gts = min(gts_lengths)
+    eis = np.array(list(map(lambda x: x[:min_eis], eis)))
+    dis = np.array(list(map(lambda x: x[:min_dis], dis)))
+    gts = np.array(list(map(lambda x: x[:min_gts], gts)))
+
+    if len(batch) == 0:
+        raise Exception("No sample on batch")
+
+    print('({} {} {})'.format(min_eis, min_dis, min_gts))
+    return torch.from_numpy(eis), torch.from_numpy(dis), torch.from_numpy(gts)
+
 loader = DataLoader(ntu_dataset,
                     batch_size=48,
                     shuffle=True,
-                    collate_fn=collate)
+                    collate_fn=collate_triple)
 
 
 optimizer = torch.optim.SGD(model.parameters(), lr=0.2)
@@ -127,15 +149,17 @@ for epoch in range(100):
 
     pbar = tqdm(loader, desc='Initializing ...')
     batch_num = 0
-    for data in pbar:
-        data = data.to(device, dtype=torch.float)
+    for ei, di, gt in pbar:
+        ei = ei.to(device, dtype=torch.float)
+        di = di.to(device, dtype=torch.float)
+        gt = gt.to(device, dtype=torch.float)
+        n, t, v, c = di.size()
+        mask = subsequent_mask(t).to(device, dtype=torch.float)
 
-        n_out, t_out, v_out, c_out = data.size()
-        mask = subsequent_mask(t_out).to(device, dtype=torch.float)
         optimizer.zero_grad()
-        out = model(data, data, A, mask)
+        out = model(ei, di, A, mask)
 
-        loss = criterion(out, data)
+        loss = criterion(out, gt)
         loss.backward()
 
         # update parameters
@@ -155,7 +179,7 @@ for epoch in range(100):
         animation_path = 'outputs/animations/{}.gif'.format(animation_name)
         reference_path = 'outputs/animations/{}.gif'.format(reference_name)
         save_animation(out[0], skeleton_model, animation_path)
-        save_animation(data[0], skeleton_model, reference_path)
+        save_animation(gt[0], skeleton_model, reference_path)
         wandb.log({animation_name: wandb.Video(animation_path, fps=30, format="gif")})
         wandb.log({reference_name: wandb.Video(reference_path, fps=30, format="gif")})
         torch.save(model.state_dict(), 'train_last.pth')

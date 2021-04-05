@@ -2,7 +2,7 @@ import os, glob
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 
-class NTUDataset(Dataset):
+class NTUBasicDataset(Dataset):
     def __init__(self, root_dir, transform=None):
         self.root_dir = root_dir
         self.transform = transform #root_dir
@@ -20,6 +20,41 @@ class NTUDataset(Dataset):
 
         # pose_data = pose_data.transpose(2, 0, 1)
         return pose_data
+
+
+'''
+No problema 1 algumas posições do vetor de entrada no encoder são eliminados, especialmente nós dos braços e das pernas.
+O vetor de entrada no decoder é deslocado uma posição para trás.
+'''
+class NTUProblem1Dataset(Dataset):
+    def __init__(self, root_dir, transform=None):
+        self.root_dir = root_dir
+        self.transform = transform #root_dir
+        self.files = glob.glob(root_dir+'*C001*.npy')
+        print('Num files = {}'.format(len(self.files)))
+
+    def __len__(self):
+        return len(self.files)
+
+    def __getitem__(self, idx):
+        file_data = np.load(self.files[idx], allow_pickle=True)[()]
+        nodes_off = [6, 7, 10, 11, 14, 15, 18, 19]
+        base_data =  file_data['skel_body0']
+        if self.transform:
+            base_data = self.transform(base_data)
+
+        encoder_input = np.copy(base_data[:-1,:,:])
+        encoder_input[:, nodes_off, :] = 0
+
+        decoder_input = np.copy(np.roll(encoder_input, -1, axis=0))
+        decoder_input[-1, :, :] = 0
+
+        ground_truth = np.copy(base_data[1:,:,:])
+
+        # Shape = (n, t, v, c)
+
+        return encoder_input, decoder_input, ground_truth
+
 
 
 class SelectSubSample(object):

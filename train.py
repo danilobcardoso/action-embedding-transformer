@@ -20,7 +20,7 @@ from IPython.display import display
 from skeleton_models import ntu_rgbd, ntu_ss_1, ntu_ss_2, ntu_ss_3
 from graph import Graph
 from render import animate, save_animation
-from datasets import NTUDataset, Normalize, CropSequence, SelectDimensions, SelectSubSample
+from datasets import NTUBasicDataset, Normalize, CropSequence, SelectDimensions, SelectSubSample
 
 # Model components
 from zoo_pose_embedding import TwoLayersGCNPoseEmbedding, JoaosDownsampling
@@ -103,7 +103,7 @@ def collate(batch):
     return torch.utils.data.dataloader.default_collate(batch)
 
 #ntu_dataset = NTUDataset(root_dir='../ntu-rgbd-dataset/data/sel_npy/', transform=composed)
-ntu_dataset = NTUDataset(root_dir='../datasets/NTURGB-D/Python/sel_npy/', transform=composed)
+ntu_dataset = NTUBasicDataset(root_dir='../datasets/NTURGB-D/Python/sel_npy/', transform=composed)
 loader = DataLoader(ntu_dataset,
                     batch_size=512,
                     shuffle=True,

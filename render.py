@@ -42,12 +42,12 @@ def animate(sequence, model, limits=[0, 2.0, 0 ,2.0]):
     return HTML(ani.to_jshtml())
 
 
-def save_animation(sequence, model, path):
+def save_animation(sequence, model, path, limits=[0, 2.0, 0 ,2.0]):
     fig = plt.figure()
     ax = plt.axes()
     ani = anim.FuncAnimation(fig,
                                             animate_function,
-                                            fargs=(sequence, model ,ax),
+                                            fargs=(sequence, model ,ax, limits),
                                             frames=len(sequence))
 
     ani.save(path, writer='imagemagick', fps=5)

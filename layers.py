@@ -124,8 +124,14 @@ class TemporalSelfAttention(nn.Module):
         queries = torch.stack([ l(x) for l in self.w_queries], dim=1)
         values = torch.stack([ l(x) for l in self.w_values], dim=1)
 
+        #print(x.size())
+        #print('queries {}'.format(queries.size()))  # 37 x 500
+        #print('keys {}'.format(keys.size()))        # 38 x 500
+        #print('values {}'.format(values.size()))    # 37 x 500
+
         att = torch.matmul(queries, keys.permute(0,1,3,2)) / np.sqrt(vc)
         if mask is not None:
+            #print('mask {}'.format(mask.size()))    # 37 x 500
             att = att.masked_fill(mask == 0, -1e9)
         att = torch.softmax(att, dim=-1)
 
@@ -148,14 +154,25 @@ class TemporalInputAttention(nn.Module):
         n, t, vc = x.size() # [N, T, V*C]s
         mn, mt, mvc, = m.size() # [N, T, VC]
 
-        keys = torch.stack([ l(x) for l in self.w_keys], dim=1)
-        queries = torch.stack([ l(m) for l in self.w_queries], dim=1)
+
+        queries = torch.stack([ l(x) for l in self.w_queries], dim=1)
+        keys = torch.stack([ l(m) for l in self.w_keys], dim=1)
         values = torch.stack([ l(m) for l in self.w_values], dim=1)
 
+        #print(x.size())
+        #print(m.size())
+        #print('queries {}'.format(queries.size()))  # 45 x 500
+        #print('keys {}'.format(keys.size()))        # 44 x 500
+        #print('values {}'.format(values.size()))    # 45 x 500
+
         att = torch.matmul(queries, keys.permute(0,1,3,2)) / np.sqrt(vc)
+           # 45 x 500 @ 500 x 44 ->  45 x 44
         att = torch.softmax(att, dim=1)
 
+        #print('att {}'.format(att.size()))
+
         x = torch.matmul(att, values) #  -> [N, H, T, Cout*V]
+          # 45 x 44 @ 45 x 500
 
         x = x.permute(0, 2, 3, 1).contiguous() # [N, H, T, V*Cout] -> [N, T, V*Cout, H]
         x = x.view(n, t, -1) # [N, T, V*Cout, H] -> [N, T, V*Cout*H]

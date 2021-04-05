@@ -61,7 +61,7 @@ class ActionEmbeddingTransformer(nn.Module):
         pe_in = self.pose_embedding(x_in, A)    # [N, Tin, V, Co] -> [N, Tin, V*C]
         pe_out = self.pose_embedding(x_out, A)  # [N, Tout, V, Co] -> [N, Tout, V*C]
         encoded = self.action_encoder(pe_in, A) # [N, Tin, V*C] -> [N, Tin, V*C]
-        decoded = self.action_decoder(encoded, pe_out, A, mask) # [N, Tin, V*C] [N, Tout, V*C] [K, V, V] [1, Tout, Tout] -> # [N, Tout, V*C]
+        decoded = self.action_decoder(pe_out, encoded, A, mask) # [N, Tin, V*C] [N, Tout, V*C] [K, V, V] [1, Tout, Tout] -> # [N, Tout, V*C]
         output = self.upsampling(decoded)       # [N, Tout, V*C] -> [N, Tout, V, Co]
 
         return output
