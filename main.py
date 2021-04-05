@@ -98,8 +98,8 @@ composed = transforms.Compose([Normalize(),
                                SelectSubSample(skeleton_model)
                               ])
 
-# ntu_dataset = NTUDataset(root_dir='../ntu-rgbd-dataset/data/sel_npy/', transform=composed)
-ntu_dataset = NTUDataset(root_dir='../datasets/NTURGB-D/Python/sel_npy/', transform=composed)
+ntu_dataset = NTUDataset(root_dir='../ntu-rgbd-dataset/data/raw_npy/', transform=composed)
+# ntu_dataset = NTUDataset(root_dir='../datasets/NTURGB-D/Python/sel_npy/', transform=composed)
 
 def collate(batch):
     batch = list(filter(lambda x:x is not None, batch))
@@ -111,7 +111,7 @@ def collate(batch):
     return torch.from_numpy(batch)
 
 loader = DataLoader(ntu_dataset,
-                    batch_size=32,
+                    batch_size=48,
                     shuffle=True,
                     collate_fn=collate)
 
@@ -122,10 +122,12 @@ wandb.watch(model)
 
 model.train()
 
-pbar = tqdm(range(200000), desc='Initializing ...')
-for epoch in pbar:
 
-    for data in loader:
+for epoch in range(100):
+
+    pbar = tqdm(loader, desc='Initializing ...')
+    batch_num = 0
+    for data in pbar:
         data = data.to(device, dtype=torch.float)
 
         n_out, t_out, v_out, c_out = data.size()
@@ -139,19 +141,21 @@ for epoch in pbar:
         # update parameters
         optimizer.step()
         pbar.set_description("Curr loss = {:.4f}".format(loss.item()))
+        batch_num = batch_num + 1
 
-    if epoch == 0:
-        save_animation(data[0], skeleton_model, 'outputs/animations/a_sample_example_epoch_{}.gif'.format(epoch))
+        if batch_num % 300 == 299:
+            wandb.log({'loss': loss.item()})
 
-    if epoch % 10 == 9:
-        wandb.log({'loss': loss.item()})
-
-    if epoch % 100 == 99:
+    if epoch % 1 == 0:
         print('Epoch {} loss = {}'.format(epoch, loss.item()))
         # torch.save(model.state_dict(), 'outputs/models/simple_encoder_epoch_{}.pth'.format(epoch))
         # save_animation(data[0], ntu_rgbd, 'outputs/animations/sample_example_epoch_{}.gif'.format(epoch))
         animation_name = 'out_epoch_{}'.format(epoch)
-        save_animation(data[0], skeleton_model, 'outputs/animations/a_sample_example_epoch_{}.gif'.format(epoch))
+        reference_name = 'example_epoch_{}'.format(epoch)
         animation_path = 'outputs/animations/{}.gif'.format(animation_name)
+        reference_path = 'outputs/animations/{}.gif'.format(reference_name)
         save_animation(out[0], skeleton_model, animation_path)
+        save_animation(data[0], skeleton_model, reference_path)
         wandb.log({animation_name: wandb.Video(animation_path, fps=30, format="gif")})
+        wandb.log({reference_name: wandb.Video(reference_path, fps=30, format="gif")})
+        torch.save(model.state_dict(), 'train_last.pth')
