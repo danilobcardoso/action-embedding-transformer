@@ -129,7 +129,7 @@ def collate_triple(batch):
     if len(batch) == 0:
         raise Exception("No sample on batch")
 
-    print('({} {} {})'.format(min_eis, min_dis, min_gts))
+    #  print('({} {} {})'.format(min_eis, min_dis, min_gts))
     return torch.from_numpy(eis), torch.from_numpy(dis), torch.from_numpy(gts)
 
 loader = DataLoader(ntu_dataset,
