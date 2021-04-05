@@ -7,13 +7,13 @@ from IPython.display import HTML
 from IPython.display import display
 
 
-def animate_function(i, action, model, ax):
+def animate_function(i, action, model, ax, limits):
     edges = model['links']
     num_nodes = model['num_nodes']
     colors = model['colors']
     ax.clear()
     #ax.axis([-.5, 1.0, -1.5 ,1.0])
-    ax.axis([0, 2.0, 0 ,2.0])
+    ax.axis(limits)
     frame = action[i]
     axis_x = frame[:,0]
     axis_y = frame[:,1]
@@ -32,12 +32,12 @@ def animate_function(i, action, model, ax):
         ax.annotate(node_index, xy=(axis_x[node_index], axis_y[node_index]))
 
 
-def animate(sequence, model):
+def animate(sequence, model, limits=[0, 2.0, 0 ,2.0]):
     fig = plt.figure()
     ax = plt.axes()
     ani = anim.FuncAnimation(fig,
                                             animate_function,
-                                            fargs=(sequence, model ,ax),
+                                            fargs=(sequence, model ,ax, limits),
                                             frames=len(sequence))
     return HTML(ani.to_jshtml())
 
