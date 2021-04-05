@@ -98,8 +98,8 @@ composed = transforms.Compose([Normalize(),
                                SelectSubSample(skeleton_model)
                               ])
 
-#ntu_dataset = NTUProblem1Dataset(root_dir='../ntu-rgbd-dataset/data/raw_npy/', transform=composed)
-ntu_dataset = NTUProblem1Dataset(root_dir='../datasets/NTURGB-D/Python/sel_npy/', transform=composed)
+ntu_dataset = NTUProblem1Dataset(root_dir='../ntu-rgbd-dataset/data/raw_npy/', transform=composed)
+#ntu_dataset = NTUProblem1Dataset(root_dir='../datasets/NTURGB-D/Python/sel_npy/', transform=composed)
 
 def collate_single(batch):
     batch = list(filter(lambda x:x is not None, batch))
