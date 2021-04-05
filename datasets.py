@@ -6,7 +6,7 @@ class NTUDataset(Dataset):
     def __init__(self, root_dir, transform=None):
         self.root_dir = root_dir
         self.transform = transform #root_dir
-        self.files = glob.glob(root_dir+'*.npy')
+        self.files = glob.glob(root_dir+'*C001*.npy')
         print('Num files = {}'.format(len(self.files)))
 
     def __len__(self):
