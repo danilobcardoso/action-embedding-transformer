@@ -1,5 +1,6 @@
 import os, glob
 import math, copy, time
+import argparse
 
 import torch
 import torch.nn as nn
@@ -31,75 +32,21 @@ from zoo_upsampling import StepByStepUpsampling, JoaosUpsampling
 from model import ActionEmbeddingTransformer
 from layers import subsequent_mask
 
-wandb.init(project="action-embedding-transformer")
+
+def main():
+    args = parse_args()
+    train(args)
 
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+def parse_args():
+    parser = argparse.ArgumentParser(description='.')
 
-skeleton_model = ntu_rgbd
-adjacency = Graph(skeleton_model)
-conf_kernel_size = adjacency.A.shape[0]
-conf_num_nodes = adjacency.A.shape[1]
-conf_heads = 5
-conf_encoding_per_node = 100
-conf_internal_per_node = int(conf_encoding_per_node/conf_heads)
-print(conf_encoding_per_node*conf_num_nodes)
+    parser.add_argument('-l', '--local', action='store_true', help='Incluir se estiver executando no notebook.')
+    parser.add_argument('-d', '--debug', action='store_true', help='Desligar o monitoramento do WandB' )
 
+    args = parser.parse_args()
 
-class BetterThatBestModel(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.model = ActionEmbeddingTransformer(
-            JoaosDownsampling(
-                conf_num_nodes,
-                conf_encoding_per_node*conf_num_nodes,
-                node_channel_in = 2,
-                device=device
-            ),
-            TransformerEncoderUnit (
-                heads=conf_heads,
-                embedding_in=conf_num_nodes*conf_encoding_per_node,
-                embedding_out=conf_num_nodes*conf_internal_per_node
-            ),
-            TransformerDecoderUnit(
-                heads=conf_heads,
-                embedding_in=conf_num_nodes*conf_encoding_per_node,
-                embedding_out=conf_num_nodes*conf_internal_per_node,
-                memory_in=conf_num_nodes*conf_encoding_per_node
-            ),
-            JoaosUpsampling(
-                conf_num_nodes,
-                conf_encoding_per_node*conf_num_nodes,
-                node_channel_out = 2,
-                device=device
-            )
-        )
-
-    def forward(self, x_in, x_out, A, mask):
-        return self.model(x_in, x_out, A, mask)
-
-
-
-print('Using {}'.format(device))
-
-model = BetterThatBestModel()
-
-A = torch.from_numpy(adjacency.A).to(device, dtype=torch.float)
-model = model.to(device)
-
-for p in model.parameters():
-    if p.dim() > 1:
-        nn.init.xavier_uniform_(p)
-
-criterion = torch.nn.L1Loss()
-
-composed = transforms.Compose([Normalize(),
-                               SelectDimensions(2),
-                               SelectSubSample(skeleton_model)
-                              ])
-
-ntu_dataset = NTUProblem1Dataset(root_dir='../ntu-rgbd-dataset/data/raw_npy/', transform=composed)
-#ntu_dataset = NTUProblem1Dataset(root_dir='../datasets/NTURGB-D/Python/sel_npy/', transform=composed)
+    return args
 
 def collate_single(batch):
     batch = list(filter(lambda x:x is not None, batch))
@@ -132,54 +79,138 @@ def collate_triple(batch):
     #  print('({} {} {})'.format(min_eis, min_dis, min_gts))
     return torch.from_numpy(eis), torch.from_numpy(dis), torch.from_numpy(gts)
 
-loader = DataLoader(ntu_dataset,
-                    batch_size=48,
-                    shuffle=True,
-                    collate_fn=collate_triple)
+def train(args):
+
+    if not args.debug:
+        wandb.init(project="action-embedding-transformer")
 
 
-optimizer = torch.optim.SGD(model.parameters(), lr=0.2)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-wandb.watch(model)
+    skeleton_model = ntu_rgbd
+    adjacency = Graph(skeleton_model)
+    conf_kernel_size = adjacency.A.shape[0]
+    conf_num_nodes = adjacency.A.shape[1]
+    conf_heads = 5
+    conf_encoding_per_node = 100
+    conf_internal_per_node = int(conf_encoding_per_node/conf_heads)
+    print(conf_encoding_per_node*conf_num_nodes)
 
-model.train()
+
+    class BetterThatBestModel(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.model = ActionEmbeddingTransformer(
+                JoaosDownsampling(
+                    conf_num_nodes,
+                    conf_encoding_per_node*conf_num_nodes,
+                    node_channel_in = 2,
+                    device=device
+                ),
+                TransformerEncoderUnit (
+                    heads=conf_heads,
+                    embedding_in=conf_num_nodes*conf_encoding_per_node,
+                    embedding_out=conf_num_nodes*conf_internal_per_node
+                ),
+                TransformerDecoderUnit(
+                    heads=conf_heads,
+                    embedding_in=conf_num_nodes*conf_encoding_per_node,
+                    embedding_out=conf_num_nodes*conf_internal_per_node,
+                    memory_in=conf_num_nodes*conf_encoding_per_node
+                ),
+                JoaosUpsampling(
+                    conf_num_nodes,
+                    conf_encoding_per_node*conf_num_nodes,
+                    node_channel_out = 2,
+                    device=device
+                )
+            )
+
+        def forward(self, x_in, x_out, A, mask):
+            return self.model(x_in, x_out, A, mask)
 
 
-for epoch in range(100):
 
-    pbar = tqdm(loader, desc='Initializing ...')
-    batch_num = 0
-    for ei, di, gt in pbar:
-        ei = ei.to(device, dtype=torch.float)
-        di = di.to(device, dtype=torch.float)
-        gt = gt.to(device, dtype=torch.float)
-        n, t, v, c = di.size()
-        mask = subsequent_mask(t).to(device, dtype=torch.float)
+    print('Using {}'.format(device))
 
-        optimizer.zero_grad()
-        out = model(ei, di, A, mask)
+    model = BetterThatBestModel()
 
-        loss = criterion(out, gt)
-        loss.backward()
+    A = torch.from_numpy(adjacency.A).to(device, dtype=torch.float)
+    model = model.to(device)
 
-        # update parameters
-        optimizer.step()
-        pbar.set_description("Curr loss = {:.4f}".format(loss.item()))
-        batch_num = batch_num + 1
+    for p in model.parameters():
+        if p.dim() > 1:
+            nn.init.xavier_uniform_(p)
 
-        if batch_num % 300 == 299:
-            wandb.log({'loss': loss.item()})
+    criterion = torch.nn.L1Loss()
 
-    if epoch % 1 == 0:
-        print('Epoch {} loss = {}'.format(epoch, loss.item()))
-        # torch.save(model.state_dict(), 'outputs/models/simple_encoder_epoch_{}.pth'.format(epoch))
-        # save_animation(data[0], ntu_rgbd, 'outputs/animations/sample_example_epoch_{}.gif'.format(epoch))
-        animation_name = 'out_epoch_{}'.format(epoch)
-        reference_name = 'example_epoch_{}'.format(epoch)
-        animation_path = 'outputs/animations/{}.gif'.format(animation_name)
-        reference_path = 'outputs/animations/{}.gif'.format(reference_name)
-        save_animation(out[0], skeleton_model, animation_path)
-        save_animation(gt[0], skeleton_model, reference_path)
-        wandb.log({animation_name: wandb.Video(animation_path, fps=30, format="gif")})
-        wandb.log({reference_name: wandb.Video(reference_path, fps=30, format="gif")})
-        torch.save(model.state_dict(), 'train_last.pth')
+    composed = transforms.Compose([Normalize(),
+                                SelectDimensions(2),
+                                SelectSubSample(skeleton_model)
+                                ])
+
+    if args.local:
+        print('Executando LOCAL')
+        ntu_dataset = NTUProblem1Dataset(root_dir='../datasets/NTURGB-D/Python/sel_npy/', transform=composed)
+    else:
+        print('Executando VERLAB')
+        ntu_dataset = NTUProblem1Dataset(root_dir='../ntu-rgbd-dataset/data/raw_npy/', transform=composed)
+
+
+
+    loader = DataLoader(ntu_dataset,
+                        batch_size=48,
+                        shuffle=True,
+                        collate_fn=collate_triple)
+
+
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.2)
+
+    if not args.debug:
+        wandb.watch(model)
+
+    model.train()
+
+
+    for epoch in range(100):
+
+        pbar = tqdm(loader, desc='Initializing ...')
+        batch_num = 0
+        for ei, di, gt in pbar:
+            ei = ei.to(device, dtype=torch.float)
+            di = di.to(device, dtype=torch.float)
+            gt = gt.to(device, dtype=torch.float)
+            n, t, v, c = di.size()
+            mask = subsequent_mask(t).to(device, dtype=torch.float)
+
+            optimizer.zero_grad()
+            out = model(ei, di, A, mask)
+
+            loss = criterion(out, gt)
+            loss.backward()
+
+            # update parameters
+            optimizer.step()
+            pbar.set_description("Curr loss = {:.4f}".format(loss.item()))
+            batch_num = batch_num + 1
+
+            if batch_num % 300 == 299:
+                if not args.debug:
+                    wandb.log({'loss': loss.item()})
+
+        if epoch % 1 == 0:
+            print('Epoch {} loss = {}'.format(epoch, loss.item()))
+            if not args.debug:
+                animation_name = 'out_epoch_{}'.format(epoch)
+                reference_name = 'example_epoch_{}'.format(epoch)
+                animation_path = 'outputs/animations/{}.gif'.format(animation_name)
+                reference_path = 'outputs/animations/{}.gif'.format(reference_name)
+                save_animation(out[0], skeleton_model, animation_path)
+                save_animation(gt[0], skeleton_model, reference_path)
+                wandb.log({animation_name: wandb.Video(animation_path, fps=30, format="gif")})
+                wandb.log({reference_name: wandb.Video(reference_path, fps=30, format="gif")})
+            torch.save(model.state_dict(), 'train_last.pth')
+
+
+if __name__ == "__main__":
+    main()

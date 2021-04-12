@@ -23,6 +23,37 @@ class NTUBasicDataset(Dataset):
 
 
 '''
+No problema 0 o vetor de entrada no decoder é deslocado uma posição para trás com o objetivo de fazer a rede prever a próxima posição.
+'''
+class NTUProblem0Dataset(Dataset):
+    def __init__(self, root_dir, transform=None):
+        self.root_dir = root_dir
+        self.transform = transform #root_dir
+        self.files = glob.glob(root_dir+'*C001*.npy')
+        print('Num files = {}'.format(len(self.files)))
+
+    def __len__(self):
+        return len(self.files)
+
+    def __getitem__(self, idx):
+        file_data = np.load(self.files[idx], allow_pickle=True)[()]
+        base_data =  file_data['skel_body0']
+        if self.transform:
+            base_data = self.transform(base_data)
+
+        encoder_input = np.copy(base_data[:,:,:])
+
+        decoder_input = np.copy(np.roll(encoder_input, 1, axis=0))
+        decoder_input[0, :, :] = 0
+
+        ground_truth = np.copy(base_data[:,:,:])
+
+        # Shape = (n, t, v, c)
+
+        return encoder_input, decoder_input, ground_truth
+
+
+'''
 No problema 1 algumas posições do vetor de entrada no encoder são eliminados, especialmente nós dos braços e das pernas.
 O vetor de entrada no decoder é deslocado uma posição para trás.
 '''
