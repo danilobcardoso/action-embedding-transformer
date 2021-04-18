@@ -151,7 +151,7 @@ def train(args):
 
     if args.local:
         print('Executando LOCAL')
-        ntu_dataset = NTUProblem1Dataset(root_dir='../datasets/NTURGB-D/Python/sel_npy/', transform=composed)
+        ntu_dataset = NTUProblem1Dataset(root_dir='../datasets/NTURGB-D/Python/act_npy/', transform=composed)
     else:
         print('Executando VERLAB')
         ntu_dataset = NTUProblem1Dataset(root_dir='../ntu-rgbd-dataset/data/raw_npy/', transform=composed)
