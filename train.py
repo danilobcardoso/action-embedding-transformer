@@ -155,7 +155,7 @@ def train(args):
         ntu_dataset = NTUProblem1Dataset(root_dir='../datasets/NTURGB-D/Python/act_npy/', transform=composed)
     else:
         print('Executando VERLAB')
-        ntu_dataset = NTUProblem1Dataset(root_dir='../ntu-rgbd-dataset/data/raw_npy/', transform=composed)
+        ntu_dataset = NTUProblem1Dataset(root_dir='../ntu-rgbd-dataset/data/act_npy/', transform=composed)
 
 
 
@@ -177,6 +177,7 @@ def train(args):
 
         pbar = tqdm(loader, desc='Initializing ...')
         batch_num = 0
+        loss_accum = 0
         for ei, di, gt in pbar:
             ei = ei.to(device, dtype=torch.float)
             di = di.to(device, dtype=torch.float)
@@ -194,10 +195,13 @@ def train(args):
             optimizer.step()
             pbar.set_description("Curr loss = {:.4f}".format(loss.item()))
             batch_num = batch_num + 1
-
+            loss_accum = loss_accum + loss.item()
             if batch_num % 300 == 299:
                 if not args.debug:
                     wandb.log({'loss': loss.item()})
+
+        if not args.debug:
+            wandb.log({'epoch_loss': loss_accum})
 
         if epoch % 1 == 0:
             print('Epoch {} loss = {}'.format(epoch, loss.item()))
