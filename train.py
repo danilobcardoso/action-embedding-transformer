@@ -133,7 +133,8 @@ def train(args):
 
     print('Using {}'.format(device))
 
-    model = BetterThatBestModel()
+    # model = BetterThatBestModel()
+    model = LetsMakeItSimple(device, conf_num_nodes, conf_encoding_per_node)
 
     A = torch.from_numpy(adjacency.A).to(device, dtype=torch.float)
     model = model.to(device)

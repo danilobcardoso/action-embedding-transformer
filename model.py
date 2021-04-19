@@ -5,10 +5,10 @@ from torch.utils.data import Dataset, DataLoader
 
 from layers import clones, subsequent_mask
 
-from zoo_pose_embedding import TwoLayersGCNPoseEmbedding
+from zoo_pose_embedding import TwoLayersGCNPoseEmbedding, JoaosDownsampling
 from zoo_action_encoder_units import AttentionWithGCNEncoder
 from zoo_action_decoder_units import AttentionWithGCNDecoder
-from zoo_upsampling import StepByStepUpsampling
+from zoo_upsampling import StepByStepUpsampling, JoaosUpsampling
 
 
 conf_kernel_size = 5
@@ -206,3 +206,39 @@ class BestModelEver(nn.Module):
         partial3 = partial3.permute(0, 2, 1, 3).contiguous() # [N, T, C, V] -> [N, C, T, V]
 
         return partial1, partial2, partial3
+
+
+class LetsMakeItSimple(nn.Module):
+    def __init__(self, device, conf_num_nodes, conf_encoding_per_node):
+        super().__init__()
+        self.pose_embedding = JoaosDownsampling(
+            conf_num_nodes,
+            conf_encoding_per_node*conf_num_nodes,
+            node_channel_in = 2,
+            device=device
+        )
+        self.transformers = nn.Transformer(
+            nhead=5,
+            d_model=conf_encoding_per_node*conf_num_nodes,
+            num_encoder_layers=3,
+            num_decoder_layers=3
+        )
+        self.upsampling =JoaosUpsampling(
+            conf_num_nodes,
+            conf_encoding_per_node*conf_num_nodes,
+            node_channel_out = 2,
+            device=device
+        )
+    def forward(self, x_in, x_out, A, mask):
+
+        pe_in = self.pose_embedding(x_in, A)    # [N, Tin, V, Co] -> [N, Tin, V*C]
+        pe_out = self.pose_embedding(x_out, A)  # [N, Tout, V, Co] -> [N, Tout, V*C]
+        pe_in = pe_in.permute(1, 0, 2)
+        pe_out = pe_out.permute(1, 0, 2)
+        decoded = self.transformers(pe_in, pe_out)
+        #encoded = self.action_encoder(pe_in, A) # [N, Tin, V*C] -> [N, Tin, V*C]
+        #decoded = self.action_decoder(pe_out, encoded, A, mask) # [N, Tin, V*C] [N, Tout, V*C] [K, V, V] [1, Tout, Tout] -> # [N, Tout, V*C]
+        decoded = decoded.permute(1, 0, 2)
+        output = self.upsampling(decoded)       # [N, Tout, V*C] -> [N, Tout, V, Co]
+
+        return output
