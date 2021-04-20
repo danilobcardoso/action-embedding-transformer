@@ -74,13 +74,13 @@ class NTUProblem1Dataset(Dataset):
         if self.transform:
             base_data = self.transform(base_data)
 
-        encoder_input = np.copy(base_data[:-1,:,:])
+        encoder_input = np.copy(base_data[:,:,:])
         encoder_input[:, nodes_off, :] = 0
 
-        decoder_input = np.copy(np.roll(encoder_input, -1, axis=0))
-        decoder_input[-1, :, :] = 0
+        decoder_input = np.copy(np.roll(base_data, 1, axis=0))
+        decoder_input[0, :, :] = 0
 
-        ground_truth = np.copy(base_data[1:,:,:])
+        ground_truth = np.copy(base_data[:,:,:])
 
         # Shape = (n, t, v, c)
 
