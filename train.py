@@ -29,7 +29,7 @@ from zoo_pose_embedding import TwoLayersGCNPoseEmbedding, JoaosDownsampling
 from zoo_action_encoder_units import TransformerEncoderUnit
 from zoo_action_decoder_units import TransformerDecoderUnit
 from zoo_upsampling import StepByStepUpsampling, JoaosUpsampling
-from model import ActionEmbeddingTransformer, LetsMakeItSimple
+from model import ActionEmbeddingTransformer, LetsMakeItSimple, BetterThatBestModel
 from layers import subsequent_mask
 
 
@@ -97,43 +97,9 @@ def train(args):
     print(conf_encoding_per_node*conf_num_nodes)
 
 
-    class BetterThatBestModel(nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.model = ActionEmbeddingTransformer(
-                JoaosDownsampling(
-                    conf_num_nodes,
-                    conf_encoding_per_node*conf_num_nodes,
-                    node_channel_in = 2,
-                    device=device
-                ),
-                TransformerEncoderUnit (
-                    heads=conf_heads,
-                    embedding_in=conf_num_nodes*conf_encoding_per_node,
-                    embedding_out=conf_num_nodes*conf_internal_per_node
-                ),
-                TransformerDecoderUnit(
-                    heads=conf_heads,
-                    embedding_in=conf_num_nodes*conf_encoding_per_node,
-                    embedding_out=conf_num_nodes*conf_internal_per_node,
-                    memory_in=conf_num_nodes*conf_encoding_per_node
-                ),
-                JoaosUpsampling(
-                    conf_num_nodes,
-                    conf_encoding_per_node*conf_num_nodes,
-                    node_channel_out = 2,
-                    device=device
-                )
-            )
-
-        def forward(self, x_in, x_out, A, mask):
-            return self.model(x_in, x_out, A, mask)
-
-
-
     print('Using {}'.format(device))
 
-    # model = BetterThatBestModel()
+    # model = BetterThatBestModel(device, conf_num_nodes, conf_encoding_per_node)
     model = LetsMakeItSimple(device, conf_num_nodes, conf_encoding_per_node)
 
     A = torch.from_numpy(adjacency.A).to(device, dtype=torch.float)
@@ -173,7 +139,7 @@ def train(args):
     model.train()
 
 
-    for epoch in range(100):
+    for epoch in range(500):
 
         pbar = tqdm(loader, desc='Initializing ...')
         batch_num = 0
@@ -183,7 +149,7 @@ def train(args):
             di = di.to(device, dtype=torch.float)
             gt = gt.to(device, dtype=torch.float)
             n, t, v, c = di.size()
-            mask = subsequent_mask(t).to(device, dtype=torch.float)
+            mask = nn.Transformer().generate_square_subsequent_mask(t)
 
             optimizer.zero_grad()
             out = model(ei, di, A, mask)
@@ -203,7 +169,7 @@ def train(args):
         if not args.debug:
             wandb.log({'epoch_loss': loss_accum})
 
-        if epoch % 1 == 0:
+        if epoch % 5 == 0:
             print('Epoch {} loss = {}'.format(epoch, loss.item()))
             if not args.debug:
                 animation_name = 'out_epoch_{}'.format(epoch)

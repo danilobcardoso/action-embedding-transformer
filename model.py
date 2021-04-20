@@ -79,42 +79,6 @@ class SimplePoseEncoderDecoder(nn.Module):
         return decoded
 
 
-class BetterThatBestModel(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.model = ActionEmbeddingTransformer(
-            TwoLayersGCNPoseEmbedding (
-                3,
-                conf_encoding_per_node,
-                conf_kernel_size
-            ),
-            AttentionWithGCNEncoder(
-                heads=conf_heads,
-                node_channel_in=conf_encoding_per_node,
-                node_channel_mid=conf_internal_per_node,
-                node_channel_out=conf_encoding_per_node,
-                num_nodes=conf_num_nodes,
-                kernel_size=conf_kernel_size
-            ),
-            AttentionWithGCNDecoder(
-                heads=3,
-                node_channel_in=conf_encoding_per_node,
-                memory_channel_in=conf_encoding_per_node,
-                node_channel_mid=(conf_internal_per_node,conf_internal_per_node),
-                node_channel_out=conf_encoding_per_node,
-                num_nodes=conf_num_nodes,
-                kernel_size=conf_kernel_size
-            ),
-
-            StepByStepUpsampling(
-               conf_num_nodes,
-               conf_encoding_per_node
-            )
-        )
-
-    def forward(self, x_in, x_out, A, mask):
-        return self.model(x_in, x_out, A, mask)
-
 
 class BestModelEver(nn.Module):
     def __init__(self):
@@ -208,6 +172,40 @@ class BestModelEver(nn.Module):
         return partial1, partial2, partial3
 
 
+    class BetterThatBestModel(nn.Module):
+        def __init__(self):
+            super().__init__(device, conf_num_nodes, conf_encoding_per_node)
+            self.model = ActionEmbeddingTransformer(
+                JoaosDownsampling(
+                    conf_num_nodes,
+                    conf_encoding_per_node*conf_num_nodes,
+                    node_channel_in = 2,
+                    device=device
+                ),
+                TransformerEncoderUnit (
+                    heads=conf_heads,
+                    embedding_in=conf_num_nodes*conf_encoding_per_node,
+                    embedding_out=conf_num_nodes*conf_internal_per_node
+                ),
+                TransformerDecoderUnit(
+                    heads=conf_heads,
+                    embedding_in=conf_num_nodes*conf_encoding_per_node,
+                    embedding_out=conf_num_nodes*conf_internal_per_node,
+                    memory_in=conf_num_nodes*conf_encoding_per_node
+                ),
+                JoaosUpsampling(
+                    conf_num_nodes,
+                    conf_encoding_per_node*conf_num_nodes,
+                    node_channel_out = 2,
+                    device=device
+                )
+            )
+
+        def forward(self, x_in, x_out, A, mask):
+            return self.model(x_in, x_out, A, mask)
+
+
+
 class LetsMakeItSimple(nn.Module):
     def __init__(self, device, conf_num_nodes, conf_encoding_per_node):
         super().__init__()
@@ -235,7 +233,7 @@ class LetsMakeItSimple(nn.Module):
         pe_out = self.pose_embedding(x_out, A)  # [N, Tout, V, Co] -> [N, Tout, V*C]
         pe_in = pe_in.permute(1, 0, 2)
         pe_out = pe_out.permute(1, 0, 2)
-        decoded = self.transformers(pe_in, pe_out)
+        decoded = self.transformers(pe_in, pe_out, tgt_mask=mask)
         #encoded = self.action_encoder(pe_in, A) # [N, Tin, V*C] -> [N, Tin, V*C]
         #decoded = self.action_decoder(pe_out, encoded, A, mask) # [N, Tin, V*C] [N, Tout, V*C] [K, V, V] [1, Tout, Tout] -> # [N, Tout, V*C]
         decoded = decoded.permute(1, 0, 2)
