@@ -149,11 +149,13 @@ class TemporalInputAttention(nn.Module):
         self.w_queries = clones(nn.Linear(memory_in, embedding_out), heads)
         self.w_values = clones(nn.Linear(memory_in, embedding_out), heads)
 
-    def forward(self, x, m):
+    def forward(self, x, m, mask=None):
 
         n, t, vc = x.size() # [N, T, V*C]s
         mn, mt, mvc, = m.size() # [N, T, VC]
 
+        print('m => {}'.format(m.size()))
+        print('x => {}'.format(x.size()))
 
         queries = torch.stack([ l(x) for l in self.w_queries], dim=1)
         keys = torch.stack([ l(m) for l in self.w_keys], dim=1)
@@ -166,6 +168,10 @@ class TemporalInputAttention(nn.Module):
         #print('values {}'.format(values.size()))    # 45 x 500
 
         att = torch.matmul(queries, keys.permute(0,1,3,2)) / np.sqrt(vc)
+        print(mask)
+        if mask is not None:
+            #print('mask {}'.format(mask.size()))    # 37 x 500
+            att = att.masked_fill(mask == 0, -1e9)
            # 45 x 500 @ 500 x 44 ->  45 x 44
         att = torch.softmax(att, dim=1)
 

@@ -72,6 +72,6 @@ class TransformerDecoderUnit(nn.Module):
 
     def forward(self, x, m, A, mask):
         x = self.sublayer1(x, lambda x: self.temporal_self_attention(x, mask) )
-        x = self.sublayer1(x, lambda x: self.temporal_input_attention(x, m) )
+        x = self.sublayer1(x, lambda x: self.temporal_input_attention(x, m, mask) )
         x = self.sublayer2(x, self.feed_forward)
         return x
