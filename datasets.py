@@ -2,11 +2,20 @@ import os, glob
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 
+
+def select_samples(root_dir, camera='C001', classes=['A023', 'A013']):
+    files = []
+    for c in classes:
+        pattern = '{}/*{}*{}*.npy'.format(root_dir, camera, c)
+        files.extend(glob.glob(pattern))
+    return files
+
+
 class NTUBasicDataset(Dataset):
-    def __init__(self, root_dir, transform=None):
+    def __init__(self, root_dir, transform=None, camera='C001', classes=['*']):
         self.root_dir = root_dir
         self.transform = transform #root_dir
-        self.files = glob.glob(root_dir+'*C001*.npy')
+        self.files = select_samples(root_dir, camera=camera, classes=classes) #glob.glob(root_dir+'*C001*.npy')
         print('Num files = {}'.format(len(self.files)))
 
     def __len__(self):
@@ -26,10 +35,10 @@ class NTUBasicDataset(Dataset):
 No problema 0 o vetor de entrada no decoder é deslocado uma posição para trás com o objetivo de fazer a rede prever a próxima posição.
 '''
 class NTUProblem0Dataset(Dataset):
-    def __init__(self, root_dir, transform=None):
+    def __init__(self, root_dir, transform=None, camera='C001', classes=['*']):
         self.root_dir = root_dir
         self.transform = transform #root_dir
-        self.files = glob.glob(root_dir+'*C001*.npy')
+        self.files = select_samples(root_dir, camera=camera, classes=classes) #glob.glob(root_dir+'*C001*.npy')
         print('Num files = {}'.format(len(self.files)))
 
     def __len__(self):
@@ -58,10 +67,10 @@ No problema 1 algumas posições do vetor de entrada no encoder são eliminados,
 O vetor de entrada no decoder é deslocado uma posição para trás.
 '''
 class NTUProblem1Dataset(Dataset):
-    def __init__(self, root_dir, transform=None):
+    def __init__(self, root_dir, transform=None, camera='C001', classes=['*']):
         self.root_dir = root_dir
         self.transform = transform #root_dir
-        self.files = glob.glob(root_dir+'*C001*.npy')
+        self.files = select_samples(root_dir, camera=camera, classes=classes) #glob.glob(root_dir+'*C001*.npy')
         print('Num files = {}'.format(len(self.files)))
 
     def __len__(self):
