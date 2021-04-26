@@ -33,6 +33,25 @@ from model import ActionEmbeddingTransformer, LetsMakeItSimple
 from layers import subsequent_mask
 
 
+experiment_setups = {
+    'delete_fixed__single_action': {
+        'problem': 1,
+        'classes': ['A023'],
+        'tags': ['delete_fixed', 'single_action']
+    },
+    'delete_fixed__all_actions': {
+        'problem': 1,
+        'classes': ['*'],
+        'tags': ['delete_fixed', 'all_actions']
+    },
+    'delete_fixed__two_actions': {
+        'problem': 1,
+        'classes': ['A023', 'A024'],
+        'tags': ['delete_fixed', 'two_actions']
+    },
+
+}
+
 def main():
     args = parse_args()
     train(args)
@@ -43,6 +62,8 @@ def parse_args():
 
     parser.add_argument('-l', '--local', action='store_true', help='Incluir se estiver executando no notebook.')
     parser.add_argument('-d', '--debug', action='store_true', help='Desligar o monitoramento do WandB' )
+    parser.add_argument('-s', '--setup', type=ascii, default='delete_fixed__single_action', help='Setup de um experimento (problemas e classes)')
+    parser.add_argument('-b', '--batch_size', type=int, default=48, help='Número de amostras no mini batch')
 
     args = parser.parse_args()
 
@@ -79,11 +100,21 @@ def collate_triple(batch):
     #  print('({} {} {})'.format(min_eis, min_dis, min_gts))
     return torch.from_numpy(eis), torch.from_numpy(dis), torch.from_numpy(gts)
 
+def load_dataset(base_path, transform, setup):
+    if setup['problem'] == 0:
+        return NTUProblem0Dataset(root_dir=base_path, transform=transform, classes=setup['classes'])
+    elif setup['problem'] == 1:
+        return NTUProblem1Dataset(root_dir=base_path, transform=transform, classes=setup['classes'])
+    else:
+        return NTUBasicDataset(root_dir=base_path, transform=transform, classes=setup['classes'])
+
+
 def train(args):
+    setup = experiment_setups[args.setup.strip("'")]
+    print('Carregando experimento: {}'.format(args.setup.strip("'")))
 
     if not args.debug:
-        wandb.init(project="action-embedding-transformer")
-
+        wandb.init(project="action-embedding-transformer", tags=setup['tags'])
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -116,17 +147,18 @@ def train(args):
                                 SelectSubSample(skeleton_model)
                                 ])
 
+    root_dir = '../ntu-rgbd-dataset/data/raw_npy/'
     if args.local:
         print('Executando LOCAL')
-        ntu_dataset = NTUProblem1Dataset(root_dir='../datasets/NTURGB-D/Python/raw_npy/', transform=composed, classes=['A023'])
+        root_dir='../datasets/NTURGB-D/Python/raw_npy/'
     else:
         print('Executando VERLAB')
-        ntu_dataset = NTUProblem1Dataset(root_dir='../ntu-rgbd-dataset/data/raw_npy/', transform=composed, classes=['A023'])
+    ntu_dataset = load_dataset(root_dir, transform=composed, setup=setup)
 
 
 
     loader = DataLoader(ntu_dataset,
-                        batch_size=48,
+                        batch_size=args.batch_size,
                         shuffle=True,
                         collate_fn=collate_triple)
 

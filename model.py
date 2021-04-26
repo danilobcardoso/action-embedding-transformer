@@ -231,12 +231,14 @@ class LetsMakeItSimple(nn.Module):
 
         pe_in = self.pose_embedding(x_in, A)    # [N, Tin, V, Co] -> [N, Tin, V*C]
         pe_out = self.pose_embedding(x_out, A)  # [N, Tout, V, Co] -> [N, Tout, V*C]
+
         pe_in = pe_in.permute(1, 0, 2)
         pe_out = pe_out.permute(1, 0, 2)
+
         decoded = self.transformers(pe_in, pe_out, tgt_mask=mask)
-        #encoded = self.action_encoder(pe_in, A) # [N, Tin, V*C] -> [N, Tin, V*C]
-        #decoded = self.action_decoder(pe_out, encoded, A, mask) # [N, Tin, V*C] [N, Tout, V*C] [K, V, V] [1, Tout, Tout] -> # [N, Tout, V*C]
+
         decoded = decoded.permute(1, 0, 2)
+
         output = self.upsampling(decoded)       # [N, Tout, V*C] -> [N, Tout, V, Co]
 
         return output
