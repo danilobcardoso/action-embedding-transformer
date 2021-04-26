@@ -29,7 +29,7 @@ from zoo_pose_embedding import TwoLayersGCNPoseEmbedding, JoaosDownsampling
 from zoo_action_encoder_units import TransformerEncoderUnit
 from zoo_action_decoder_units import TransformerDecoderUnit
 from zoo_upsampling import StepByStepUpsampling, JoaosUpsampling
-from model import ActionEmbeddingTransformer, LetsMakeItSimple, BetterThatBestModel
+from model import ActionEmbeddingTransformer, LetsMakeItSimple
 from layers import subsequent_mask
 
 
@@ -149,7 +149,7 @@ def train(args):
             di = di.to(device, dtype=torch.float)
             gt = gt.to(device, dtype=torch.float)
             n, t, v, c = di.size()
-            mask = nn.Transformer().generate_square_subsequent_mask(t)
+            mask = nn.Transformer().generate_square_subsequent_mask(t).to(device)
 
             optimizer.zero_grad()
             out = model(ei, di, A, mask)
