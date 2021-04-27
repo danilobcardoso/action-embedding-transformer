@@ -22,7 +22,7 @@ from IPython.display import display
 from skeleton_models import ntu_rgbd, ntu_ss_1, ntu_ss_2, ntu_ss_3
 from graph import Graph
 from render import animate, save_animation
-from datasets import NTUBasicDataset, NTUProblem1Dataset, Normalize, CropSequence, SelectDimensions, SelectSubSample
+from datasets import NTUBasicDataset, NTUProblem0Dataset, NTUProblem1Dataset, Normalize, CropSequence, SelectDimensions, SelectSubSample
 
 # Model components
 from zoo_pose_embedding import TwoLayersGCNPoseEmbedding, JoaosDownsampling
