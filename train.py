@@ -34,6 +34,21 @@ from layers import subsequent_mask
 
 
 experiment_setups = {
+    'complete__single_action': {
+        'problem': 0,
+        'classes': ['A023'],
+        'tags': ['complete', 'single_action']
+    },
+    'complete__all_actions': {
+        'problem': 0,
+        'classes': ['*'],
+        'tags': ['complete', 'all_actions']
+    },
+    'complete__two_actions': {
+        'problem': 0,
+        'classes': ['A023', 'A024'],
+        'tags': ['complete', 'two_actions']
+    },
     'delete_fixed__single_action': {
         'problem': 1,
         'classes': ['A023'],
